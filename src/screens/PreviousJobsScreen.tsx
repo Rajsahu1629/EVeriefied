@@ -198,12 +198,14 @@ const PreviousJobsScreen: React.FC = () => {
                                     </View>
 
                                     {/* Edit Button */}
-                                    <TouchableOpacity
-                                        style={styles.editBtn}
-                                        onPress={() => navigation.navigate('PostJob', { isEditMode: true, jobData: job } as any)}
-                                    >
-                                        <Edit2 size={18} color={colors.primary} />
-                                    </TouchableOpacity>
+                                    {job.status !== 'approved' && (
+                                        <TouchableOpacity
+                                            style={styles.editBtn}
+                                            onPress={() => navigation.navigate('PostJob', { isEditMode: true, jobData: job } as any)}
+                                        >
+                                            <Edit2 size={18} color={colors.primary} />
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
 
                                 {/* Salary Row */}

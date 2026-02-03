@@ -18,6 +18,7 @@
     "babel-plugin-inline-dotenv": "^1.7.0",
     "big-integer": "^1.6.52",
     "expo": "~54.0.32",
+    "expo-build-properties": "~1.0.10",
     "expo-file-system": "^19.0.21",
     "expo-linear-gradient": "~15.0.8",
     "expo-media-library": "^18.2.1",

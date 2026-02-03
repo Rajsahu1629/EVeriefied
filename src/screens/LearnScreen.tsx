@@ -117,22 +117,46 @@ export default function LearnScreen() {
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
                 {tab === 'videos' ? (
-                    <>
-                        <Text style={styles.sectionTitle}>🎓 {isHindi ? 'वीडियो कोर्स' : 'Video Courses'}</Text>
-                        {LEARNING_ITEMS.map((item) => {
-                            const Icon = item.icon;
-                            return (
-                                <TouchableOpacity key={item.id} style={styles.courseCard} onPress={() => openYouTube(item.youtubeId)}>
-                                    <View style={[styles.iconBox, { backgroundColor: item.color + '20' }]}><Icon size={22} color={item.color} /></View>
-                                    <Text style={styles.courseTitle}>{isHindi ? item.title_hi : item.title_en}</Text>
-                                    <View style={styles.playBtn}><Play size={14} color="#fff" fill="#fff" /></View>
-                                </TouchableOpacity>
-                            );
-                        })}
-                        <TouchableOpacity style={styles.moreBtn} onPress={() => Linking.openURL('https://www.youtube.com/results?search_query=EV+technician+training')}>
-                            <ExternalLink size={16} color={colors.primary} /><Text style={styles.moreBtnText}>{isHindi ? 'और वीडियो' : 'More Videos'}</Text>
+                    <View style={styles.channelContainer}>
+                        <View style={styles.channelHeader}>
+                            <View style={styles.channelIcon}>
+                                <Play size={32} color="#ff0000" fill="#ff0000" />
+                            </View>
+                            <Text style={styles.channelTitle}>2Wheeler Tech EV</Text>
+                            <Text style={styles.channelSub}>
+                                {isHindi
+                                    ? 'हमारे यूट्यूब चैनल पर EV रिपेयरिंग सीखें'
+                                    : 'Learn EV Repairing on our YouTube Channel'}
+                            </Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.channelBtn}
+                            onPress={() => Linking.openURL('https://www.youtube.com/@2wheeler_techEV')}
+                        >
+                            <Text style={styles.channelBtnText}>
+                                {isHindi ? 'चैनल पर जाएं' : 'Visit Channel'}
+                            </Text>
+                            <ExternalLink size={18} color="#fff" />
                         </TouchableOpacity>
-                    </>
+
+                        <View style={styles.featuresList}>
+                            {[
+                                { icon: Zap, label: 'EV Basics', color: '#3b82f6' },
+                                { icon: Battery, label: 'Battery Tech', color: '#10b981' },
+                                { icon: Wrench, label: 'Motor Repair', color: '#f59e0b' },
+                                { icon: Award, label: 'Certification', color: '#8b5cf6' },
+                            ].map((f, i) => {
+                                const Icon = f.icon;
+                                return (
+                                    <View key={i} style={styles.featureItem}>
+                                        <Icon size={20} color={f.color} />
+                                        <Text style={styles.featureLabel}>{f.label}</Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
                 ) : quizState === 'playing' ? (
                     <View style={styles.quizContainer}>
                         <View style={styles.quizHeader}><Text style={styles.qNum}>{currentQuestion + 1}/5</Text><View style={styles.scoreBox}><Star size={14} color="#f59e0b" /><Text style={styles.scoreText}>{score}</Text></View></View>
@@ -208,4 +232,14 @@ const styles = StyleSheet.create({
     finalScore: { fontSize: 40, fontWeight: 'bold', color: '#7c3aed', marginVertical: spacing.sm },
     backBtn: { backgroundColor: '#7c3aed', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginTop: spacing.sm },
     backBtnText: { color: '#fff', fontWeight: '600' },
+    channelContainer: { backgroundColor: '#fff', borderRadius: 16, padding: spacing.lg, alignItems: 'center', marginTop: spacing.md, borderWidth: 1, borderColor: '#e2e8f0' },
+    channelHeader: { alignItems: 'center', marginBottom: spacing.lg },
+    channelIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#fee2e2', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+    channelTitle: { fontSize: 20, fontWeight: 'bold', color: colors.foreground, marginBottom: 4 },
+    channelSub: { fontSize: 13, color: colors.muted, textAlign: 'center' },
+    channelBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#ff0000', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginBottom: spacing.lg },
+    channelBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+    featuresList: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.sm },
+    featureItem: { width: '48%', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f8fafc', padding: spacing.md, borderRadius: 12 },
+    featureLabel: { fontSize: 12, fontWeight: '600', color: colors.foreground },
 });

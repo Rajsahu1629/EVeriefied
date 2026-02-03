@@ -21,7 +21,9 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.rajsahu1629.EVerifiedNative",
+      "jsEngine": "hermes"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,6 +33,16 @@
         "projectId": "d6c24d4b-375f-435d-b26f-19de1aa15fbe"
       }
     },
-    "owner": "rajsahu1629"
+    "owner": "rajsahu1629",
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ]
   }
 }
