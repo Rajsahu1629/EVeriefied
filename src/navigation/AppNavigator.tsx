@@ -54,11 +54,33 @@ export type RootStackParamList = {
 
 const Stack = createStackNavigator<RootStackParamList>();
 
+import { useUser } from '../contexts/UserContext';
+import { View, ActivityIndicator } from 'react-native';
+import { colors } from '../lib/theme';
+
 export const AppNavigator = () => {
+    const { isLoggedIn, isLoading, isRecruiterLoggedIn } = useUser();
+
+    // Show loading screen while checking stored session
+    if (isLoading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
+
+    // Determine initial route based on auth state
+    const getInitialRoute = (): keyof RootStackParamList => {
+        if (isLoggedIn) return 'UserDashboard';
+        if (isRecruiterLoggedIn) return 'RecruiterDashboard';
+        return 'LanguageSelection';
+    };
+
     return (
         <NavigationContainer>
             <Stack.Navigator
-                initialRouteName="LanguageSelection"
+                initialRouteName={getInitialRoute()}
                 screenOptions={{ headerShown: false }}
             >
                 <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
