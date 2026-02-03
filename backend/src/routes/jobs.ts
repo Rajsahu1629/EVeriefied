@@ -61,6 +61,17 @@ router.put('/:id', async (req, res) => {
             urgency, jobDescription, vehicleCategory, trainingRole
         } = req.body;
 
+        // Check current status
+        const currentJob = await query<any>('SELECT status FROM job_posts WHERE id = $1', [id]);
+
+        if (currentJob.length === 0) {
+            return res.status(404).json({ error: 'Job not found' });
+        }
+
+        if (currentJob[0].status === 'approved') {
+            return res.status(403).json({ error: 'Cannot edit an approved job post' });
+        }
+
         await query(
             `UPDATE job_posts SET 
         brand = $1, role_required = $2, number_of_people = $3, experience = $4,
