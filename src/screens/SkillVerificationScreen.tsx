@@ -19,7 +19,7 @@ import { useUser } from '../contexts/UserContext';
 import { Button } from '../components/ui/Button';
 import { Progress } from '../components/ui/Progress';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { query } from '../lib/database';
+import { getVerificationQuestions, updateUserVerification } from '../lib/api';
 import { LanguageSelector } from '../components/LanguageSelector';
 
 type SkillVerificationNavigationProp = StackNavigationProp<RootStackParamList, 'SkillVerification'>;
@@ -66,15 +66,12 @@ const SkillVerificationScreen: React.FC = () => {
 
     const loadQuestions = async () => {
         try {
-            const result = await query<Question>(
-                `SELECT * FROM verification_questions WHERE role = $1 AND step = $2 ORDER BY RANDOM() LIMIT 10`,
-                [(userData?.role === 'aspirant' ? 'technician' : userData?.role) || 'technician', currentStep]
-            );
-
+            const role = (userData?.role === 'aspirant' ? 'technician' : userData?.role) || 'technician';
+            const result = await getVerificationQuestions(role, currentStep);
             setQuestions(result);
 
             if (result.length === 0) {
-                console.warn('No questions found in DB');
+                console.warn('No questions found');
             }
         } catch (error) {
             console.error('Error loading questions:', error);
@@ -132,20 +129,34 @@ const SkillVerificationScreen: React.FC = () => {
             // Sales and Workshop only need step 1, Technician needs both step 1 and step 2
             const isSingleStepRole = userData?.role === 'sales' || userData?.role === 'workshop' || userData?.role === 'aspirant';
 
-            if (currentStep === 1 && passed) {
-                // For single-step roles, step 1 = verified
-                // For technician, step 1 = step1_completed (needs step 2)
-                newStatus = isSingleStepRole ? 'verified' : 'step1_completed';
-            } else if (currentStep === 2 && passed) {
-                newStatus = 'verified';
-            } else if (!passed) {
-                newStatus = 'failed';
+            // BS6 Technician Logic
+            if (userData?.domain === 'BS6' && userData?.role === 'technician') {
+                if (passed) {
+                    if (currentStep === 1) newStatus = 'step1_completed';
+                    else if (currentStep === 2) newStatus = 'step2_completed';
+                    else if (currentStep === 3) newStatus = 'verified';
+                } else {
+                    newStatus = 'failed';
+                }
+            } else {
+                if (currentStep === 1 && passed) {
+                    // For single-step roles, step 1 = verified
+                    // For technician, step 1 = step1_completed (needs step 2)
+                    newStatus = isSingleStepRole ? 'verified' : 'step1_completed';
+                } else if (currentStep === 2 && passed) {
+                    newStatus = 'verified';
+                } else if (!passed) {
+                    newStatus = 'failed';
+                }
             }
 
-            await query(
-                `UPDATE users SET verification_status = $1, quiz_score = $2, total_questions = $3, verification_step = $4 WHERE id = $5`,
-                [newStatus, finalScore, questions.length, currentStep, userData?.id]
-            );
+            // Update via API
+            await updateUserVerification(userData?.id || '', {
+                verificationStatus: newStatus || '',
+                quizScore: finalScore,
+                totalQuestions: questions.length,
+                verificationStep: currentStep,
+            });
 
             if (userData) {
                 setUserData({
@@ -207,13 +218,16 @@ const SkillVerificationScreen: React.FC = () => {
                         }
                     </Text>
 
-                    {passed && currentStep === 1 && userData?.role === 'technician' ? (
+                    {passed && userData?.role === 'technician' && (
+                        (userData?.domain === 'BS6' && currentStep < 3) ||
+                        (!userData?.domain && currentStep < 2)
+                    ) ? (
                         <Button
-                            onPress={() => navigation.replace('SkillVerification', { step: 2 })}
+                            onPress={() => navigation.replace('SkillVerification', { step: currentStep + 1 })}
                             fullWidth
                             style={{ marginTop: spacing.xl }}
                         >
-                            {t('continueToStep2')}
+                            {t('continueToStep') + ' ' + (currentStep + 1)}
                         </Button>
                     ) : (
                         <Button

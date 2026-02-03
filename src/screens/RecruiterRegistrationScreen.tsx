@@ -22,7 +22,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { query } from '../lib/database';
+import { checkRecruiterPhoneExists, registerRecruiter } from '../lib/api';
 
 type RecruiterRegistrationNavigationProp = StackNavigationProp<RootStackParamList, 'RecruiterRegistration'>;
 
@@ -43,6 +43,7 @@ const RecruiterRegistrationScreen: React.FC = () => {
         entityType: '',
         phoneNumber: '',
         password: '',
+        confirmPassword: '',
     });
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -70,6 +71,10 @@ const RecruiterRegistrationScreen: React.FC = () => {
             newErrors.password = t('passwordLength');
         }
 
+        if (formData.password !== formData.confirmPassword) {
+            newErrors.confirmPassword = t('passwordMismatch');
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -79,27 +84,25 @@ const RecruiterRegistrationScreen: React.FC = () => {
 
         setIsLoading(true);
         try {
-            // Check if recruiter already exists
-            const existing = await query<any>(
-                `SELECT id FROM recruiters WHERE phone_number = $1`,
-                [formData.phoneNumber]
-            );
+            // Check if recruiter already exists via API
+            const exists = await checkRecruiterPhoneExists(formData.phoneNumber);
 
-            if (existing.length > 0) {
+            if (exists) {
                 Alert.alert(t('error'), t('phoneAlreadyRegistered'));
                 setIsLoading(false);
                 return;
             }
 
-            // Insert new recruiter
-            const result = await query<any>(
-                `INSERT INTO recruiters (company_name, entity_type, phone_number, password)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-                [formData.companyName, formData.entityType, formData.phoneNumber, formData.password]
-            );
+            // Register new recruiter via API
+            const result = await registerRecruiter({
+                companyName: formData.companyName,
+                entityType: formData.entityType,
+                phoneNumber: formData.phoneNumber,
+                password: formData.password,
+            });
 
             const recruiterData: RecruiterData = {
-                id: result[0].id,
+                id: result.recruiter.id,
                 companyName: formData.companyName,
                 entityType: formData.entityType as EntityType,
                 phoneNumber: formData.phoneNumber,
@@ -181,6 +184,16 @@ const RecruiterRegistrationScreen: React.FC = () => {
                         value={formData.password}
                         onChangeText={(v) => updateField('password', v)}
                         error={errors.password}
+                        leftIcon={<Lock size={20} color={colors.muted} />}
+                    />
+
+                    <Input
+                        label={t('confirmPassword')}
+                        placeholder="••••••"
+                        secureTextEntry
+                        value={formData.confirmPassword}
+                        onChangeText={(v) => updateField('confirmPassword', v)}
+                        error={errors.confirmPassword}
                         leftIcon={<Lock size={20} color={colors.muted} />}
                     />
 

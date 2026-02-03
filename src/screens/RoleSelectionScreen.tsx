@@ -16,12 +16,12 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useUser, UserRole } from '../contexts/UserContext';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { query } from '../lib/database';
+import { getPlatformStats } from '../lib/api';
 
 type RoleSelectionNavigationProp = StackNavigationProp<RootStackParamList, 'RoleSelection'>;
 
 interface RoleItem {
-    key: UserRole | 'recruiter';
+    key: UserRole | 'recruiter' | 'bs6_technician';
     icon: React.FC<any>;
     titleKey: string;
     descKey: string;
@@ -30,15 +30,16 @@ interface RoleItem {
 const roles: RoleItem[] = [
     { key: 'aspirant', icon: GraduationCap, titleKey: 'evAspirant', descKey: 'evAspirantDesc' },
     { key: 'technician', icon: Wrench, titleKey: 'evTechnician', descKey: 'evTechnicianDesc' },
-    { key: 'sales', icon: ShoppingBag, titleKey: 'evShowroomManager', descKey: 'evShowroomManagerDesc' },
-    { key: 'workshop', icon: Building2, titleKey: 'evWorkshopManager', descKey: 'evWorkshopManagerDesc' },
-    { key: 'recruiter', icon: Users, titleKey: 'evRecruiter', descKey: 'evRecruiterDesc' },
+    { key: 'bs6_technician', icon: Wrench, titleKey: 'bs6Technician', descKey: 'bs6TechnicianDesc' },
+    { key: 'sales', icon: ShoppingBag, titleKey: 'showroomManager', descKey: 'evShowroomManagerDesc' },
+    { key: 'workshop', icon: Building2, titleKey: 'workshopManager', descKey: 'evWorkshopManagerDesc' },
+    { key: 'recruiter', icon: Users, titleKey: 'recruiter', descKey: 'evRecruiterDesc' },
 ];
 
 const RoleSelectionScreen: React.FC = () => {
     const navigation = useNavigation<RoleSelectionNavigationProp>();
     const { t } = useLanguage();
-    const { setSelectedRole } = useUser();
+    const { setSelectedRole, setSelectedDomain } = useUser();
 
     // Platform stats for credibility
     const [stats, setStats] = useState({
@@ -50,16 +51,12 @@ const RoleSelectionScreen: React.FC = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                // Fetch real counts from database
-                const [users, verified, recruiters] = await Promise.all([
-                    query<{ count: string }>(`SELECT COUNT(*) as count FROM users`),
-                    query<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE verification_status IN ('verified', 'approved')`),
-                    query<{ count: string }>(`SELECT COUNT(*) as count FROM recruiters`),
-                ]);
+                // Fetch real counts from API
+                const statsData = await getPlatformStats();
 
-                const userCount = parseInt(users[0]?.count || '0');
-                const verifiedCount = parseInt(verified[0]?.count || '0');
-                const companyCount = parseInt(recruiters[0]?.count || '0');
+                const userCount = statsData.totalUsers;
+                const verifiedCount = statsData.verifiedUsers;
+                const companyCount = statsData.totalRecruiters;
 
                 // Show minimum baseline numbers for credibility (real + baseline)
                 setStats({
@@ -79,11 +76,25 @@ const RoleSelectionScreen: React.FC = () => {
         fetchStats();
     }, []);
 
-    const handleRoleSelect = (role: UserRole | 'recruiter') => {
-        setSelectedRole(role);
-        if (role === 'recruiter') {
+    const handleRoleSelect = (roleKey: UserRole | 'recruiter' | 'bs6_technician') => {
+        if (roleKey === 'recruiter') {
+            setSelectedRole('recruiter');
             navigation.navigate('RecruiterAction');
+        } else if (roleKey === 'bs6_technician') {
+            setSelectedRole('technician'); // It maps to technician role
+            if (setSelectedDomain) {
+                setSelectedDomain('BS6');
+            }
+            navigation.navigate('ActionSelection');
         } else {
+            setSelectedRole(roleKey as UserRole);
+            // Default to EV if not BS6, or leave null to let user choose? 
+            // Ideally clear it or set to EV? Let's clear it to be safe or set to EV if it's EV Technician.
+            // But 'technician' key implies EV Technician in the UI.
+            if (setSelectedDomain) {
+                if (roleKey === 'technician') setSelectedDomain('EV');
+                else setSelectedDomain(null);
+            }
             navigation.navigate('ActionSelection');
         }
     };
@@ -150,7 +161,7 @@ const RoleSelectionScreen: React.FC = () => {
 
                 {/* Platform Stats - Trust Building */}
                 <View style={styles.statsContainer}>
-                    <Text style={styles.statsTitle}>Trusted by EV Professionals</Text>
+                    <Text style={styles.statsTitle}>Trusted by EV & BS6 Professionals</Text>
                     <View style={styles.statsRow}>
                         <View style={styles.statItem}>
                             <View style={[styles.statIcon, { backgroundColor: '#e0f2fe' }]}>

@@ -1,5 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -11,7 +11,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ArrowLeft, MapPin } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -23,55 +23,105 @@ import { Select } from '../components/ui/Select';
 import { Checkbox } from '../components/ui/Checkbox';
 import { Progress } from '../components/ui/Progress';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { query } from '../lib/database';
+import { createJob, updateJob } from '../lib/api';
 
 type PostJobNavigationProp = StackNavigationProp<RootStackParamList, 'PostJob'>;
 
-const evBrands = [
-    { label: 'Ola', value: 'Ola' },
-    { label: 'Ather', value: 'Ather' },
-    { label: 'Bajaj', value: 'Bajaj' },
-    { label: 'TVS', value: 'TVS' },
-    { label: 'Hero Electric', value: 'Hero Electric' },
-    { label: 'Other', value: 'Other' },
-];
+// Moved inside component for translation
 
-const roles = [
-    { label: 'EV Technician', value: 'technician' },
-    { label: 'EV Showroom Manager', value: 'sales' },
-    { label: 'EV Workshop Manager', value: 'workshop' },
-];
+// Moved inside component for translation
 
-const experiences = [
-    { label: 'Fresher', value: 'fresher' },
-    { label: '1-2 years', value: '1-2' },
-    { label: '2-5 years', value: '2-5' },
-    { label: '5+ years', value: '5+' },
-];
+// Moved inside component for translation
 
 const PostJobScreen: React.FC = () => {
     const navigation = useNavigation<PostJobNavigationProp>();
+    const route = useRoute();
+    const params = route.params as { isEditMode?: boolean; jobData?: any } | undefined;
+    const isEditMode = params?.isEditMode;
+    const existingJob = params?.jobData;
+
     const { t } = useLanguage();
     const { recruiterData } = useUser();
+
+
 
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
 
     const [formData, setFormData] = useState({
-        brand: '',
-        otherBrand: '', // Custom brand name when 'Other' is selected
-        roleRequired: '',
-        numberOfPeople: '',
-        experience: '',
-        salaryMin: '',
-        salaryMax: '',
-        hasIncentive: false,
-        pincode: '',
-        city: '',
-        stayProvided: false,
-        urgency: 'within_7_days',
-        jobDescription: '',
+        brand: existingJob?.brand === 'Other' ? 'Other' : (existingJob?.brand || ''),
+        otherBrand: existingJob?.brand === 'Other' ? existingJob?.brand : '', // Logic adjustment needed: if brand not in list, it's 'Other' + custom
+        roleRequired: existingJob?.role_required || '',
+        numberOfPeople: existingJob?.number_of_people || '',
+        experience: existingJob?.experience || '',
+        salaryMin: existingJob?.salary_min?.toString() || '',
+        salaryMax: existingJob?.salary_max?.toString() || '',
+        hasIncentive: existingJob?.has_incentive || false,
+        pincode: existingJob?.pincode || '',
+        city: existingJob?.city || '',
+        stayProvided: existingJob?.stay_provided || false,
+        urgency: existingJob?.urgency || 'within_7_days',
+        jobDescription: existingJob?.job_description || '',
+        vehicleCategory: existingJob?.vehicle_category || '',
+        trainingRole: existingJob?.training_role || '',
     });
+
+    // Correctly handle Other brand for pre-fill
+    // If brand is not in evBrands list, set brand='Other' and otherBrand=actualBrand
+    useEffect(() => {
+        if (isEditMode && existingJob?.brand) {
+            const brandExists = evBrands.some(b => b.value === existingJob.brand);
+            if (!brandExists) {
+                setFormData(prev => ({ ...prev, brand: 'Other', otherBrand: existingJob.brand }));
+            }
+        }
+    }, [isEditMode, existingJob]);
+
+    // Define options with translations
+    const evBrands = [
+        { label: 'Ola', value: 'Ola' },
+        { label: 'Ather', value: 'Ather' },
+        { label: 'Bajaj', value: 'Bajaj' },
+        { label: 'TVS', value: 'TVS' },
+        { label: 'Hero Electric', value: 'Hero Electric' },
+        { label: t('other'), value: 'Other' },
+    ];
+
+    const roles = [
+        { label: t('evTechnician'), value: 'technician' },
+        { label: t('bs6Technician'), value: 'bs6_technician' },
+        { label: t('showroomManager'), value: 'sales' },
+        { label: t('workshopManager'), value: 'workshop' },
+        { label: t('fresher'), value: 'fresher' },
+    ];
+
+    const experiences = [
+        { label: t('fresher'), value: 'fresher' },
+        { label: `0-1 ${t('years')}`, value: '0-1' },
+        { label: `1-2 ${t('years')}`, value: '1-2' },
+        { label: `2-3 ${t('years')}`, value: '2-3' },
+        { label: `3-4 ${t('years')}`, value: '3-4' },
+        { label: `4-5 ${t('years')}`, value: '4-5' },
+        { label: `5-6 ${t('years')}`, value: '5-6' },
+        { label: `6-7 ${t('years')}`, value: '6-7' },
+        { label: `7-8 ${t('years')}`, value: '7-8' },
+        { label: `8+ ${t('years')}`, value: '8+' },
+    ];
+
+    const vehicleCategories = [
+        { label: '2 Wheeler', value: '2W' },
+        { label: '3 Wheeler', value: '3W' },
+    ];
+
+
+
+    const trainingRoles = [
+        { label: 'Basic', value: 'Basic' },
+        { label: 'Engine Expert', value: 'Engine Expert' },
+        { label: 'Diagnosis Expert (Electrical)', value: 'Diagnosis Expert' },
+        { label: 'Diagnosis + Engine Expert', value: 'Diagnosis + Engine Expert' },
+    ];
+
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -88,6 +138,14 @@ const PostJobScreen: React.FC = () => {
         if (!formData.brand) newErrors.brand = t('required');
         if (formData.brand === 'Other' && !formData.otherBrand) newErrors.otherBrand = t('required');
         if (!formData.roleRequired) newErrors.roleRequired = t('required');
+        if (!formData.numberOfPeople) newErrors.numberOfPeople = t('required');
+        // if (!formData.roleRequired) newErrors.roleRequired = t('required');
+
+        // Vehicle Category mandatory for certain roles (Technician, Sales, Workshop)
+        if (formData.roleRequired !== 'fresher' && !formData.vehicleCategory) {
+            newErrors.vehicleCategory = t('required');
+        }
+
         if (!formData.numberOfPeople) newErrors.numberOfPeople = t('required');
         if (!formData.experience) newErrors.experience = t('required');
 
@@ -122,34 +180,38 @@ const PostJobScreen: React.FC = () => {
 
         setIsLoading(true);
         try {
-            await query(
-                `INSERT INTO job_posts (
-          recruiter_id, brand, role_required, number_of_people, experience,
-          salary_min, salary_max, has_incentive, pincode, city, stay_provided,
-          urgency, job_description, status, is_active
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-                [
-                    parseInt(recruiterData?.id || '0'),
-                    formData.brand === 'Other' ? formData.otherBrand : formData.brand,
-                    formData.roleRequired,
-                    formData.numberOfPeople,
-                    formData.experience,
-                    parseInt(formData.salaryMin),
-                    parseInt(formData.salaryMax),
-                    formData.hasIncentive,
-                    formData.pincode,
-                    formData.city,
-                    formData.stayProvided,
-                    formData.urgency,
-                    formData.jobDescription,
-                    'pending',
-                    true,
-                ]
-            );
+            const brandValue = formData.brand === 'Other' ? formData.otherBrand : formData.brand;
 
-            Alert.alert(t('jobPostCreated'), '', [
-                { text: 'OK', onPress: () => navigation.goBack() }
-            ]);
+            const jobData = {
+                brand: brandValue,
+                roleRequired: formData.roleRequired,
+                numberOfPeople: formData.numberOfPeople,
+                experience: formData.experience,
+                salaryMin: parseInt(formData.salaryMin),
+                salaryMax: parseInt(formData.salaryMax),
+                hasIncentive: formData.hasIncentive,
+                pincode: formData.pincode,
+                city: formData.city,
+                stayProvided: formData.stayProvided,
+                urgency: formData.urgency,
+                jobDescription: formData.jobDescription,
+                vehicleCategory: formData.vehicleCategory || null,
+                trainingRole: formData.trainingRole || null,
+            };
+
+            if (isEditMode && existingJob?.id) {
+                // UPDATE via API
+                await updateJob(existingJob.id, jobData);
+                Alert.alert('Success', 'Job Post Updated Successfully!', [
+                    { text: 'OK', onPress: () => navigation.goBack() }
+                ]);
+            } else {
+                // INSERT via API
+                await createJob(parseInt(recruiterData?.id || '0'), jobData);
+                Alert.alert(t('jobPostCreated'), '', [
+                    { text: 'OK', onPress: () => navigation.goBack() }
+                ]);
+            }
         } catch (error) {
             console.error('Job post error:', error);
             Alert.alert(t('error'), t('jobPostFailed'));
@@ -157,6 +219,7 @@ const PostJobScreen: React.FC = () => {
             setIsLoading(false);
         }
     };
+
 
     const renderStep1 = () => (
         <>
@@ -188,6 +251,34 @@ const PostJobScreen: React.FC = () => {
                 onValueChange={(v) => updateField('roleRequired', v)}
                 error={errors.roleRequired}
             />
+
+
+
+            {/* Vehicle Category Selection */}
+            {formData.roleRequired !== 'fresher' && (
+                <Select
+                    label="Vehicle Category"
+                    placeholder="Select Vehicle Category"
+                    options={vehicleCategories}
+                    value={formData.vehicleCategory}
+                    onValueChange={(v) => updateField('vehicleCategory', v)}
+                    error={errors.vehicleCategory}
+                />
+            )}
+
+            {/* Training Role Selection (Only for BS6 Technician) */}
+            {formData.roleRequired === 'bs6_technician' && (
+                <Select
+                    label="Training Role"
+                    placeholder="Select Training Role"
+                    options={trainingRoles}
+                    value={formData.trainingRole}
+                    onValueChange={(v) => updateField('trainingRole', v)}
+                    error={errors.trainingRole}
+                />
+            )}
+
+
 
             <Input
                 label={t('numberOfPeople')}
@@ -362,7 +453,7 @@ const PostJobScreen: React.FC = () => {
                             </Button>
                         ) : (
                             <Button onPress={handleSubmit} loading={isLoading} fullWidth>
-                                {t('submitJob')}
+                                {isEditMode ? 'Update Job Post' : t('submitJob')}
                             </Button>
                         )}
                     </View>

@@ -7,10 +7,11 @@ import {
     StatusBar,
     TouchableOpacity,
     ScrollView,
+    Linking
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { PlusCircle, FileText, ChevronRight, LogOut, Users, Search } from 'lucide-react-native';
+import { PlusCircle, FileText, ChevronRight, LogOut, Users, Search, MessageCircle } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
@@ -95,7 +96,27 @@ const RecruiterDashboardScreen: React.FC = () => {
                     </View>
                     <ChevronRight size={24} color={colors.muted} />
                 </TouchableOpacity>
+
+                {/* Support */}
+                <TouchableOpacity
+                    style={styles.actionCard}
+                    onPress={() => {
+                        const message = encodeURIComponent("Hello Support, I need help with...");
+                        Linking.openURL(`whatsapp://send?phone=+919473928468&text=${message}`);
+                    }}
+                    activeOpacity={0.7}
+                >
+                    <View style={[styles.actionIconWrapper, { backgroundColor: '#dcfce7' }]}>
+                        <MessageCircle size={32} color="#16a34a" />
+                    </View>
+                    <View style={styles.actionTextContainer}>
+                        <Text style={styles.actionTitle}>Help & Support</Text>
+                        <Text style={styles.actionDesc}>Chat with us on WhatsApp</Text>
+                    </View>
+                    <ChevronRight size={24} color={colors.muted} />
+                </TouchableOpacity>
             </ScrollView>
+
         </SafeAreaView>
     );
 };

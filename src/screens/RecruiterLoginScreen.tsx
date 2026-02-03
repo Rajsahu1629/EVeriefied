@@ -10,6 +10,7 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
+    Linking
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -21,7 +22,7 @@ import { LanguageToggle } from '../components/LanguageToggle';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { query } from '../lib/database';
+import { loginRecruiter } from '../lib/api';
 
 type RecruiterLoginNavigationProp = StackNavigationProp<RootStackParamList, 'RecruiterLogin'>;
 
@@ -79,23 +80,20 @@ const RecruiterLoginScreen: React.FC = () => {
         }
 
         try {
-            const recruiters = await query<any>(
-                `SELECT * FROM recruiters WHERE phone_number = $1 AND password = $2`,
-                [phoneNumber, password]
-            );
+            const response = await loginRecruiter(phoneNumber, password);
 
-            if (recruiters.length === 0) {
+            if (!response.success || !response.recruiter) {
                 Alert.alert(t('error'), t('loginFailed'));
                 setIsLoading(false);
                 return;
             }
 
-            const dbRecruiter = recruiters[0];
+            const recruiter = response.recruiter;
             const recruiterData: RecruiterData = {
-                id: dbRecruiter.id,
-                companyName: dbRecruiter.company_name,
-                entityType: dbRecruiter.entity_type as EntityType,
-                phoneNumber: dbRecruiter.phone_number,
+                id: recruiter.id,
+                companyName: recruiter.companyName,
+                entityType: recruiter.entityType as EntityType,
+                phoneNumber: recruiter.phoneNumber,
             };
 
             setRecruiterData(recruiterData);
@@ -105,9 +103,10 @@ const RecruiterLoginScreen: React.FC = () => {
                 index: 0,
                 routes: [{ name: 'RecruiterDashboard' }],
             });
-        } catch (error) {
-            console.error('Login error:', error);
-            Alert.alert(t('error'), t('networkError'));
+        } catch (error: any) {
+            // Show the actual error message from API
+            const errorMessage = error?.message || t('networkError');
+            Alert.alert(t('error'), errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -173,6 +172,17 @@ const RecruiterLoginScreen: React.FC = () => {
                             error={errors.password}
                             leftIcon={<Lock size={20} color={colors.muted} />}
                         />
+
+                        <TouchableOpacity
+                            style={styles.forgotPasswordContainer}
+                            onPress={() => {
+                                const phone = phoneNumber || "your_registered_number";
+                                const message = encodeURIComponent(`Hello Support, I forgot my recruiter password for mobile number: ${phone}`);
+                                Linking.openURL(`whatsapp://send?phone=+919473928468&text=${message}`);
+                            }}
+                        >
+                            <Text style={styles.forgotPasswordText}>{t('forgotPassword')}</Text>
+                        </TouchableOpacity>
 
                         <Button
                             onPress={handleLogin}
@@ -269,6 +279,16 @@ const styles = StyleSheet.create({
         color: colors.muted,
     },
     footerLink: {
+        fontSize: fontSize.sm,
+        color: colors.primary,
+        fontWeight: '600',
+    },
+    forgotPasswordContainer: {
+        alignSelf: 'flex-end',
+        marginTop: spacing.xs,
+        marginBottom: spacing.xs,
+    },
+    forgotPasswordText: {
         fontSize: fontSize.sm,
         color: colors.primary,
         fontWeight: '600',

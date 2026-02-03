@@ -17,7 +17,7 @@ interface Translations {
 export const translations: Translations = {
     // App name and general
     appName: { hi: 'EVerified', en: 'EVerified' },
-    tagline: { hi: 'EV वर्कफोर्स के लिए भरोसेमंद प्लेटफॉर्म', en: 'Trusted Platform for EV Workforce' },
+    tagline: { hi: 'EV & BS6 वर्कफोर्स के लिए भरोसेमंद प्लेटफॉर्म', en: 'Trusted Platform for EV & BS6 Workforce' },
     selectLanguage: {
         en: 'Select Language',
         hi: 'भाषा चुनें',
@@ -40,15 +40,20 @@ export const translations: Translations = {
     selectRole: { hi: 'अपनी भूमिका चुनें', en: 'Select your role', mr: 'तुमची भूमिका निवडा', kn: 'ನಿಮ್ಮ ಪಾತ್ರವನ್ನು ಆಯ್ಕೆಮಾಡಿ', te: 'మీ పాత్రను ఎంచుకోండి', or: 'ଆପଣଙ୍କର ଭୂମିକା ଚୟନ କରନ୍ତୁ' },
     evTechnician: { hi: 'EV तकनीशियन', en: 'EV Technician', mr: 'EV तंत्रज्ञ', kn: 'EV ತಂತ್ರಜ್ಞ', te: 'EV సాంకేతిక నిపుణుడు', or: 'EV ଟେକ୍ନିସିଆନ୍' },
     evTechnicianDesc: { hi: 'इलेक्ट्रिक वाहनों की मरम्मत और रखरखाव', en: 'Repair and maintain electric vehicles', mr: 'इलेक्ट्रिक वाहनांची दुरुस्ती आणि देखभाल', kn: 'ಎಲೆಕ್ಟ್ರಿಕ್ ವಾಹನಗಳ ದುರಸ್ತಿ ಮತ್ತು ನಿರ್ವಹಣೆ', te: 'ఎలక్ట్రిక్ వాహనాల మరమ్మత్తు మరియు నిర్వహణ', or: 'ଇଲେକ୍ଟ୍ରିକ୍ ଯାନଗୁଡିକର ମରାମତି ଏବଂ ରକ୍ଷଣାବେକ୍ଷଣ' },
-    evShowroomManager: { hi: 'EV शोरूम मैनेजर', en: 'EV Showroom Manager', mr: 'EV शोरूम व्यवस्थापक', kn: 'EV ಶೋರೂಮ್ ವ್ಯವಸ್ಥಾಪಕ', te: 'EV షోరూమ్ మేనేజర్', or: 'EV ଶୋରୁମ୍ ମ୍ୟାନେଜର୍' },
+    evShowroomManager: { hi: 'शोरूम मैनेजर', en: 'Showroom Manager', mr: 'शोरूम व्यवस्थापक', kn: 'ಶೋರೂಮ್ ವ್ಯವಸ್ಥಾಪಕ', te: 'షోరూమ్ మేనేజర్', or: 'ଶୋରୁମ୍ ମ୍ୟାନେଜର୍' },
     evShowroomManagerDesc: { hi: 'शोरूम का प्रबंधन और ग्राहक सेवा', en: 'Showroom management and customer service', mr: 'शोरूम व्यवस्थापन आणि ग्राहक सेवा', kn: 'ಶೋರೂಮ್ ನಿರ್ವಹಣೆ ಮತ್ತು ಗ್ರಾಹಕ ಸೇವೆ', te: 'షోరూమ్ నిర్వహణ మరియు కస్టమర్ సర్వీస్', or: 'ଶୋରୁମ୍ ପରିଚାଳନା ଏବଂ ଗ୍ରାହକ ସେବା' },
-    evWorkshopManager: { hi: 'EV वर्कशॉप मैनेजर', en: 'EV Workshop Manager', mr: 'EV कार्यशाळा व्यवस्थापक', kn: 'EV ಕಾರ್ಯಾಗಾರ ವ್ಯವಸ್ಥಾಪಕ', te: 'EV వర్క్‌షాప్ మేనేజర్', or: 'EV ୱର୍କସପ୍ ମ୍ୟାନେଜର୍' },
+    evWorkshopManager: { hi: 'वर्कशॉप मैनेजर', en: 'Workshop Manager', mr: 'कार्यशाळा व्यवस्थापक', kn: 'ಕಾರ್ಯಾಗಾರ ವ್ಯವಸ್ಥಾಪಕ', te: 'వర్క్‌షాప్ మేనేజర్', or: 'ୱର୍କସପ୍ ମ୍ୟାନେଜର୍' },
     evWorkshopManagerDesc: { hi: 'वर्कशॉप का प्रबंधन और टीम नेतृत्व', en: 'Workshop management and team leadership', mr: 'कार्यशाळा व्यवस्थापन आणि टीम नेतृत्व', kn: 'ಕಾರ್ಯಾγಾರ ನಿರ್ವಹಣೆ ಮತ್ತು ತಂಡ ನಾಯಕತ್ವ', te: 'వర్క్‌షాప్ నిర్వహణ మరియు టీమ్ నాయకత్వం', or: 'ୱର୍କସପ୍ ପରିଚାଳନା ଏବଂ ଦଳ ନେତୃତ୍ୱ' },
-    evRecruiter: { hi: 'EV रिक्रूटर', en: 'EV Recruiter', mr: 'EV नियोक्ता', kn: 'EV ನೇಮಕಾತಿದಾರ', te: 'EV రిక్రూటర్', or: 'EV ନିଯୁକ୍ତିକର୍ତ୍ତା' },
-    evRecruiterDesc: { hi: 'EV पेशेवरों की भर्ती करें', en: 'Hire EV professionals', mr: 'EV व्यावसायिकांची भरती करा', kn: 'EV ವೃತ್ತಿಪರರನ್ನು ನೇಮಿಸಿ', te: 'EV నిపుణులను నియమించండి', or: 'EV ପେଶାଦାରମାନଙ୍କୁ ନିଯୁକ୍ତ କରନ୍ତୁ' },
-    evAspirant: { hi: 'EV फ्रेशर', en: 'EV Fresher', mr: 'EV फ्रेशर', kn: 'EV ಫ್ರೆಶರ್', te: 'EV ఫ్రెషర్', or: 'EV ଫ୍ରେଶର୍' },
-    evAspirantDesc: { hi: 'EV सेक्टर में करियर शुरू करें', en: 'Start career in EV sector', mr: 'EV क्षेत्रात करिअर सुरू करा', kn: 'EV ವಲಯದಲ್ಲಿ ವೃತ್ತಿಜೀವನವನ್ನು ಪ್ರಾರಂಭಿಸಿ', te: 'EV రంగంలో కెరీರ್ ప్రారంభించండి', or: 'EV କ୍ଷେତ୍ରରେ କ୍ୟାରିଅର୍ ଆରମ୍ଭ କରନ୍ତୁ' },
-    evInfrastructure: { hi: 'EV इन्फ्रास्ट्रक्चर', en: 'EV Infrastructure', mr: 'EV पायाभूत सुविधा', kn: 'EV ಮೂಲಸೌಕರ್ಯ', te: 'EV మౌలిಕ ସୁବିଧା', or: 'EV ଭିତ୍ତିଭୂମି' },
+    evRecruiter: { hi: ' रिक्रूटर', en: 'Recruiter', mr: ' नियोक्ता', kn: ' ನೇಮಕಾತಿದಾರ', te: ' రిక్రూటర్', or: ' ନିଯୁକ୍ତିକର୍ତ୍ତା' },
+    evRecruiterDesc: { hi: 'EV & BS6 पेशेवरों की भर्ती करें', en: 'Hire EV & BS6 professionals', mr: 'EV & BS6 व्यावसायिकांची भरती करा', kn: 'EV & BS6 ವೃತ್ತಿಪರರನ್ನು ನೇಮಿಸಿ', te: 'EV & BS6 నిపుణులను నియమించండి', or: 'EV & BS6 ପେଶାଦାରମାନଙ୍କୁ ନିଯୁକ୍ତ କରନ୍ତୁ' },
+    showroomManager: { hi: 'शोरूम मैनेजर', en: 'Showroom Manager', mr: 'शोरूम व्यवस्थापक', kn: 'ಶೋರೂಮ್ ವ್ಯವಸ್ಥಾಪಕ', te: 'షోరూమ్ మేనేజర్', or: 'ଶୋରୁମ୍ ମ୍ୟାନେଜର୍' },
+    workshopManager: { hi: 'वर्कशॉप मैनेजर', en: 'Workshop Manager', mr: 'कार्यशाळा व्यवस्थापक', kn: 'ಕಾರ್ಯಾಗಾರ ವ್ಯವಸ್ಥಾಪಕ', te: 'వర్క్‌షాప్ మేనేజర్', or: 'ୱର୍କସପ୍ ମ୍ୟାନେଜର୍' },
+    recruiter: { hi: 'रिक्रूटर', en: 'Recruiter', mr: ' नियोक्ता', kn: ' ನೇಮಕಾತಿದಾರ', te: ' రిక్రూటర్', or: ' ନିଯୁକ୍ତିକର୍ତ୍ତା' },
+    bs6Technician: { hi: 'BS6 तकनीशियन', en: 'BS6 Technician', mr: 'BS6 तंत्रज्ञ', kn: 'BS6 ತಂತ್ರಜ್ಞ', te: 'BS6 సాంకేతిక నిపుణుడు', or: 'BS6 ଟେକ୍ନିସିଆନ୍' },
+    bs6TechnicianDesc: { hi: 'BS6 वाहनों का रखरखाव (2W/3W)', en: 'Repair and Maintain of BS6 vehicles (2W/3W)', mr: 'BS6 वाहनांची देखभाल', kn: 'BS6 ವಾಹನಗಳ ನಿರ್ವಹಣೆ', te: 'BS6 వాహనాల నిర్వహణ', or: 'BS6 ଯାନର ରକ୍ଷଣାବେକ୍ଷଣ' },
+    evAspirant: { hi: 'EV/BS6 फ्रेशर', en: 'EV/BS6 Fresher', mr: 'EV/BS6 फ्रेशर', kn: 'EV/BS6 ಫ್ರೆಶರ್', te: 'EV/BS6 ఫ్రెషర్', or: 'EV/BS6 ଫ୍ରେଶର୍' },
+    evAspirantDesc: { hi: 'EV/BS6 सेक्टर में करियर शुरू करें', en: 'Start career in EV & BS6 sector', mr: 'EV & BS6 क्षेत्रात करिअर सुरू करा', kn: 'EV & BS6 ವಲಯದಲ್ಲಿ ವೃತ್ತಿಜೀವನವನ್ನು ಪ್ರಾರಂಭಿಸಿ', te: 'EV & BS6 రంగంలో కెరీర్ ప్రారంభించండి', or: 'EV & BS6 କ୍ଷେତ୍ରରେ କ୍ୟାରିଅର୍ ଆରମ୍ଭ କରନ୍ତୁ' },
+    evInfrastructure: { hi: 'EV इन्फ्रास्ट्रक्चर', en: 'EV Infrastructure', mr: 'EV पायाभूत सुविधा', kn: 'EV ಮೂಲಸೌಕರ್ಯ', te: 'EV మౌలిక ସుబిధా', or: 'EV ଭିତ୍ତିଭୂମି' },
     evInfrastructureDesc: { hi: 'चार्जिंग स्टेशन और इन्फ्रा सेवाएं', en: 'Charging stations & infra services', mr: 'चार्जिंग स्टेशन आणि इन्फ्रा सेवा', kn: 'ಚಾರ್ಜಿಂಗ್ ಕೇಂದ್ರಗಳು ಮತ್ತು ಇನ್ಫ್ರಾ ಸೇವೆಗಳು', te: 'ఛార్జింగ్ స్టేషన్లు మరియు ఇన్ఫ్రా సేవలు', or: 'ଚାର୍ଜିଂ ଷ୍ଟେସନ୍ ଏବଂ ଇନ୍‌ଫ୍ରା ସେବାଗୁଡ଼ିକ' },
     comingSoon: { hi: 'जल्द आ रहा है', en: 'Coming Soon', mr: 'लवकरच येत आहे', kn: 'ಶೀಘ್ರದಲ್ಲಿ ಬರಲಿದೆ', te: 'త్వରలో వస్తోంది', or: 'ଶୀଘ୍ର ଆସୁଛି' },
 
@@ -101,6 +106,7 @@ export const translations: Translations = {
 
     // Login
     loginTitle: { hi: 'अपने खाते में लॉगिन करें', en: 'Login to your account' },
+    forgotPassword: { hi: 'पासवर्ड भूल गए?', en: 'Forgot Password?' },
     password: { hi: 'पासवर्ड', en: 'Password' },
     loginButton: { hi: 'लॉगिन', en: 'Login' },
     noAccount: { hi: 'खाता नहीं है?', en: "Don't have an account?" },
@@ -236,6 +242,25 @@ export const translations: Translations = {
     idCard: { hi: 'आईडी कार्ड', en: 'ID Card' },
     notVerified: { hi: 'वेरिफाइड नहीं', en: 'Not Verified' },
     verificationProgress: { hi: 'वेरिफिकेशन प्रगति', en: 'Verification Progress' },
+    testPassed: { hi: 'टेस्ट पास ✓', en: 'Test passed ✓' },
+    allTestsPassed: { hi: 'सभी टेस्ट पास ✓', en: 'All tests passed ✓' },
+    oneTestPassed: { hi: '1 टेस्ट पास, 1 बाकी', en: '1 test passed, 1 remaining' },
+    completeVerification: { hi: 'अपना वेरिफिकेशन पूरा करें', en: 'Complete your verification' },
+    actionRequired: { hi: 'कार्रवाई आवश्यक', en: 'Action Required' },
+    verificationCompleteTitle: { hi: 'वेरिफिकेशन पूरा हुआ', en: 'Verification Complete' },
+    cardOrdered: { hi: 'कार्ड ऑर्डर किया गया ✓', en: 'Card Already Ordered ✓' },
+    cardDeliveredMsg: { hi: 'आपका कार्ड 7-10 दिनों में डिलीवर हो जाएगा', en: 'Your card will be delivered in 7-10 days' },
+    experiencePartners: { hi: 'अनुभव पार्टनर्स', en: 'Experience Partners' },
+    scanToVerify: { hi: 'लाइव स्किल वेरिफाई\nकरने के लिए स्कैन करें', en: 'SCAN TO VERIFY\nLIVE SKILLS' },
+    download: { hi: 'डाउनलोड', en: 'Download' },
+    share: { hi: 'शेयर करें', en: 'Share' },
+    orderCard: { hi: 'फिजिकल कार्ड ऑर्डर करें (Rs 199)', en: 'Order Physical Card (Rs 199)' },
+    getPremiumCard: { hi: 'अपने घर पर प्रीमियम आईडी कार्ड प्राप्त करें', en: 'Get your premium ID card at your door step' },
+    whatsappSupport: { hi: 'व्हाट्सएप सपोर्ट', en: 'WhatsApp Support' },
+    getHelp: { hi: 'तुरंत मदद पाएं', en: 'Get help instantly' },
+    yearExperienced: { hi: 'साल का अनुभव', en: 'Year Experienced' },
+    year: { hi: 'साल', en: 'Year' },
+    yearsExp: { hi: 'साल+', en: '+' }, // Special case for 1+ Year -> 1 साल+
 
     // Form
     naOption: { hi: 'NA (लागू नहीं)', en: 'NA (Not Applicable)' },
@@ -245,6 +270,14 @@ export const translations: Translations = {
     enterCity: { hi: 'शहर का नाम दर्ज करें', en: 'Enter city name' },
 
     // Errors
+    pass10th: { hi: '10वीं पास', en: '10th Pass' },
+    pass12th: { hi: '12वीं पास', en: '12th Pass' },
+    twoWheeler: { hi: '2 व्हीलर', en: '2 Wheeler' },
+    threeWheeler: { hi: '3 व्हीलर', en: '3 Wheeler' },
+    vehicleCategory: { hi: 'वाहन श्रेणी', en: 'Vehicle Category' },
+    selectVehicleCategory: { hi: 'वाहन श्रेणी चुनें', en: 'Select Vehicle Category' },
+    btech: { hi: 'B.Tech / B.E.', en: 'B.Tech / B.E.' },
+
     userAlreadyExists: { hi: 'यह फ़ोन नंबर पहले से पंजीकृत है। कृपया लॉगिन करें।', en: 'This phone number is already registered. Please login.' },
     phoneAlreadyRegistered: { hi: 'फ़ोन नंबर पहले से पंजीकृत है', en: 'Phone number already registered' },
 };

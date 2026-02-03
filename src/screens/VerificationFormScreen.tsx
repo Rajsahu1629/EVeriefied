@@ -1,5 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, User, Phone, Lock, MapPin, Briefcase } from 'lucide-react-native';
+import { ArrowLeft, User, Phone, Lock, MapPin, Briefcase, BookOpen } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser, UserRole } from '../contexts/UserContext';
@@ -25,41 +25,90 @@ import { Select } from '../components/ui/Select';
 import { Checkbox } from '../components/ui/Checkbox';
 import { Progress } from '../components/ui/Progress';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { query } from '../lib/database';
+import { checkPhoneExists, registerUser, updateUser } from '../lib/api';
 
 type VerificationFormNavigationProp = StackNavigationProp<RootStackParamList, 'VerificationForm'>;
 
 const states = [
+    { label: 'Andhra Pradesh', value: 'Andhra Pradesh' },
+    { label: 'Arunachal Pradesh', value: 'Arunachal Pradesh' },
+    { label: 'Assam', value: 'Assam' },
+    { label: 'Bihar', value: 'Bihar' },
+    { label: 'Chhattisgarh', value: 'Chhattisgarh' },
     { label: 'Delhi', value: 'Delhi' },
+    { label: 'Goa', value: 'Goa' },
+    { label: 'Gujarat', value: 'Gujarat' },
+    { label: 'Haryana', value: 'Haryana' },
+    { label: 'Himachal Pradesh', value: 'Himachal Pradesh' },
+    { label: 'Jharkhand', value: 'Jharkhand' },
+    { label: 'Karnataka', value: 'Karnataka' },
+    { label: 'Kerala', value: 'Kerala' },
     { label: 'Madhya Pradesh', value: 'Madhya Pradesh' },
     { label: 'Maharashtra', value: 'Maharashtra' },
-    { label: 'Gujarat', value: 'Gujarat' },
+    { label: 'Manipur', value: 'Manipur' },
+    { label: 'Meghalaya', value: 'Meghalaya' },
+    { label: 'Mizoram', value: 'Mizoram' },
+    { label: 'Nagaland', value: 'Nagaland' },
+    { label: 'Odisha', value: 'Odisha' },
+    { label: 'Punjab', value: 'Punjab' },
     { label: 'Rajasthan', value: 'Rajasthan' },
-    { label: 'Uttar Pradesh', value: 'Uttar Pradesh' },
-    { label: 'Karnataka', value: 'Karnataka' },
+    { label: 'Sikkim', value: 'Sikkim' },
     { label: 'Tamil Nadu', value: 'Tamil Nadu' },
+    { label: 'Telangana', value: 'Telangana' },
+    { label: 'Tripura', value: 'Tripura' },
+    { label: 'Uttar Pradesh', value: 'Uttar Pradesh' },
+    { label: 'Uttarakhand', value: 'Uttarakhand' },
+    { label: 'West Bengal', value: 'West Bengal' },
 ];
 
-const qualifications = [
-    { label: 'ITI', value: 'iti' },
-    { label: 'Diploma', value: 'diploma' },
-    { label: 'B.Tech / B.E.', value: 'btech' },
-    { label: 'Other', value: 'other' },
-];
+// Moved inside component for translation
 
 const experiences = [
     { label: 'Fresher', value: 'fresher' },
+    { label: '0-1 years', value: '0-1' },
     { label: '1-2 years', value: '1-2' },
-    { label: '2-5 years', value: '2-5' },
-    { label: '5+ years', value: '5+' },
+    { label: '2-3 years', value: '2-3' },
+    { label: '3-4 years', value: '3-4' },
+    { label: '4-5 years', value: '4-5' },
+    { label: '5-6 years', value: '5-6' },
+    { label: '6-7 years', value: '6-7' },
+    { label: '7-8 years', value: '7-8' },
+    { label: '8+ years', value: '8+' },
 ];
 
-const evBrands = ['Bajaj', 'Ola', 'Ather', 'TVS', 'Hero Electric', 'Other'];
+const evBrands = ['Bajaj', 'Ola', 'Ather', 'TVS', 'Hero', 'Mahindra', 'Tata', 'Hero Electric', 'Other'];
+
+const domains = [
+    { label: 'EV (Electric Vehicle)', value: 'EV' },
+    { label: 'BS6 (Internal Combustion)', value: 'BS6' },
+];
+
+// Moved inside component for translation
 
 const VerificationFormScreen: React.FC = () => {
     const navigation = useNavigation<VerificationFormNavigationProp>();
+    // @ts-ignore - Route params
+    const route = useRoute();
+    // @ts-ignore
+    const isEditMode = route.params?.isEditMode;
+
     const { t } = useLanguage();
-    const { selectedRole } = useUser();
+    const { selectedRole, selectedDomain, userData, refreshUserData } = useUser();
+
+    // Define options with translations
+    const qualifications = [
+        { label: t('pass10th'), value: '10th' },
+        { label: t('pass12th'), value: '12th' },
+        { label: t('iti'), value: 'iti' },
+        { label: t('diploma'), value: 'diploma' },
+        { label: t('btech'), value: 'btech' },
+        { label: t('other'), value: 'other' },
+    ];
+
+    const vehicleCategories = [
+        { label: t('twoWheeler'), value: '2W' },
+        { label: t('threeWheeler'), value: '3W' },
+    ];
 
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
@@ -69,24 +118,42 @@ const VerificationFormScreen: React.FC = () => {
     // Auto-set experience removed to allow selection
 
     // Form data
+
     const [formData, setFormData] = useState({
-        fullName: '',
-        phoneNumber: '',
-        password: '',
+        fullName: userData?.fullName || '',
+        phoneNumber: userData?.phoneNumber || '',
+        password: '', // Don't pre-fill password
         confirmPassword: '',
-        state: '',
-        city: '',
-        pincode: '',
-        qualification: '',
-        experience: '',
-        currentWorkshop: '',
-        brandWorkshop: '',
-        brands: [] as string[],
+        state: userData?.state || '',
+        city: userData?.city || '',
+        pincode: userData?.pincode || '',
+        qualification: userData?.qualification || '',
+        experience: userData?.experience === 'fresher' && selectedRole !== 'aspirant' ? '0-1' : (userData?.experience || ''),
+        currentWorkshop: userData?.current_workshop || '',
+        brandWorkshop: userData?.brand_workshop || '',
+        brands: userData?.brands ? (Array.isArray(userData.brands) ? userData.brands : JSON.parse(userData.brands)) : [] as string[],
+        otherBrandName: '',
         otherQualification: '',
-        priorKnowledge: '',
-        agreedToTerms: false,
-        currentSalary: '',
+        priorKnowledge: userData?.prior_knowledge || '',
+        agreedToTerms: isEditMode ? true : false,
+        currentSalary: userData?.current_salary || '',
+        domain: userData?.domain || selectedDomain || '',
+        vehicleCategory: userData?.vehicle_category || '',
+        trainingRole: userData?.training_role || '',
     });
+
+    // Populate password if edit mode (optional, or just leave blank to keep same)
+    // Actually for edit profile we usually don't verify password unless changing it.
+    // For now let's assume password change is not primary goal here, or we can make it optional.
+
+    // Fix brands if they are just ["Other"] etc.
+    useEffect(() => {
+        if (isEditMode && userData) {
+            // Logic to extract "Other" brand name if needed, but JSON.parse should handle array
+            // If brands contains something not in list, it might be custom.
+            // Our toggle logic uses exact strings.
+        }
+    }, [isEditMode, userData]);
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -99,7 +166,7 @@ const VerificationFormScreen: React.FC = () => {
 
     const toggleBrand = (brand: string) => {
         const newBrands = formData.brands.includes(brand)
-            ? formData.brands.filter(b => b !== brand)
+            ? formData.brands.filter((b: string) => b !== brand)
             : [...formData.brands, brand];
         updateField('brands', newBrands);
     };
@@ -113,15 +180,24 @@ const VerificationFormScreen: React.FC = () => {
         } else if (!/^[6-9]\d{9}$/.test(formData.phoneNumber)) {
             newErrors.phoneNumber = t('invalidPhone');
         }
-        if (!formData.password) {
-            newErrors.password = t('required');
-        } else if (formData.password.length < 6) {
-            newErrors.password = t('passwordLength');
-        }
-        if (formData.password !== formData.confirmPassword) {
-            newErrors.confirmPassword = t('passwordMismatch');
+        if (!isEditMode) {
+            if (!formData.password) {
+                newErrors.password = t('required');
+            } else if (formData.password.length < 6) {
+                newErrors.password = t('passwordLength');
+            }
+            if (formData.password !== formData.confirmPassword) {
+                newErrors.confirmPassword = t('passwordMismatch');
+            }
         }
         if (!formData.state) newErrors.state = t('required');
+
+        if (!formData.domain) newErrors.domain = t('required');
+
+        if (selectedRole !== 'aspirant' && selectedRole !== 'recruiter' && !formData.vehicleCategory) {
+            newErrors.vehicleCategory = t('required');
+        }
+
         if (selectedRole === 'aspirant') {
             if (!formData.qualification) newErrors.qualification = t('required');
             if (formData.qualification === 'other' && !formData.otherQualification) {
@@ -146,6 +222,8 @@ const VerificationFormScreen: React.FC = () => {
         // Brands only required for experienced professionals
         if (selectedRole !== 'aspirant' && formData.brands.length === 0) {
             newErrors.brands = t('selectAtLeastOne');
+        } else if (formData.brands.includes('Other') && !formData.otherBrandName) {
+            newErrors.otherBrandName = t('required');
         }
 
         setErrors(newErrors);
@@ -168,75 +246,78 @@ const VerificationFormScreen: React.FC = () => {
     const handleSubmit = async () => {
         setIsLoading(true);
         try {
-            // Check if user already exists
-            const existingUsers = await query<any>(
-                `SELECT id FROM users WHERE phone_number = $1`,
-                [formData.phoneNumber]
-            );
+            if (isEditMode && userData?.id) {
+                // UPDATE via API
+                const updateData = {
+                    fullName: formData.fullName,
+                    state: formData.state,
+                    city: formData.city,
+                    pincode: formData.pincode,
+                    qualification: formData.qualification === 'other' ? formData.otherQualification : formData.qualification,
+                    experience: selectedRole === 'aspirant' ? 'fresher' : formData.experience,
+                    currentWorkshop: formData.currentWorkshop,
+                    brandWorkshop: formData.brandWorkshop,
+                    brands: selectedRole === 'aspirant'
+                        ? []
+                        : formData.brands.map((b: string) => b === 'Other' ? formData.otherBrandName : b),
+                    priorKnowledge: formData.priorKnowledge,
+                    currentSalary: selectedRole === 'aspirant' ? '0' : formData.currentSalary,
+                    domain: formData.domain,
+                    vehicleCategory: formData.vehicleCategory || null,
+                    trainingRole: formData.trainingRole || null,
+                };
 
-            if (existingUsers.length > 0) {
-                // Show inline error for better UX
-                setErrors({ ...errors, phoneNumber: t('userAlreadyExists') });
-                // If using steps, we might need to go back to Step 1 if we are on Review Step?
-                // But registration happens at end. 
-                // We should ensure user sees Step 3 (Review)? 
-                // Actually if they submitted, they are likely on Review Screen or Step 1?
-                // Step 1 logic: if (step === 1 && selectedRole === 'aspirant') handleSubmit()
-                // Step 3 logic: Review Submit.
+                await updateUser(userData.id, updateData);
 
-                // If we are on Step 3 (Review) or Step 1 (Aspirant), the phone field is visible?
-                // On Step 3 (Review), we show summary. We don't show Input field usually.
-                // We should probably show Alert if on Review screen, OR navigate back to Step 1 to show error?
+                if (refreshUserData) await refreshUserData(); // Ensure context updates
 
-                // Let's Alert AND set error so if they go back they see it.
-                // But User asked "show the error related that field".
+                Alert.alert('Success', 'Profile Updated Successfully!', [
+                    { text: 'OK', onPress: () => navigation.goBack() }
+                ]);
+                setIsLoading(false);
+                return;
+            }
 
-                // Effective strategy:
-                // 1. Set Error.
-                // 2. If valid step (Step 3), maybe go to Step 1?
-                // Or just Alert is fine if Step 3.
+            // Check if user already exists via API
+            const phoneExists = await checkPhoneExists(formData.phoneNumber);
 
-                // If Aspirant (Step 1): Inline error works.
+            if (phoneExists) {
                 setErrors(prev => ({ ...prev, phoneNumber: t('userAlreadyExists') }));
 
                 if (step > 1) {
                     Alert.alert(t('error'), t('userAlreadyExists'), [
                         { text: 'OK', onPress: () => setStep(1) } // Send them back to fix it
                     ]);
-                } else {
-                    // Inline error is visible
                 }
 
                 setIsLoading(false);
                 return;
             }
 
-            await query(
-                `INSERT INTO users (
-          full_name, phone_number, password, state, city, pincode,
-          qualification, experience, current_workshop, brand_workshop,
-          brands, role, verification_status, verification_step, prior_knowledge, current_salary
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
-                [
-                    formData.fullName, // 1
-                    formData.phoneNumber, // 2
-                    formData.password, // 3
-                    formData.state, // 4
-                    formData.city, // 5
-                    formData.pincode, // 6
-                    formData.qualification === 'other' ? formData.otherQualification : formData.qualification, // 7
-                    selectedRole === 'aspirant' ? 'fresher' : formData.experience, // 8
-                    formData.currentWorkshop, // 9
-                    formData.brandWorkshop, // 10
-                    JSON.stringify(selectedRole === 'aspirant' ? [] : formData.brands), // 11
-                    selectedRole || 'technician', // 12
-                    'pending', // 13
-                    0, // 14
-                    formData.priorKnowledge, // 15
-                    selectedRole === 'aspirant' ? '0' : formData.currentSalary // 16
-                ]
-            );
+            // Register new user via API
+            const registrationData = {
+                fullName: formData.fullName,
+                phoneNumber: formData.phoneNumber,
+                password: formData.password,
+                state: formData.state,
+                city: formData.city,
+                pincode: formData.pincode,
+                qualification: formData.qualification === 'other' ? formData.otherQualification : formData.qualification,
+                experience: selectedRole === 'aspirant' ? 'fresher' : formData.experience,
+                currentWorkshop: formData.currentWorkshop,
+                brandWorkshop: formData.brandWorkshop,
+                brands: selectedRole === 'aspirant'
+                    ? []
+                    : formData.brands.map((b: string) => b === 'Other' ? formData.otherBrandName : b),
+                role: selectedRole || 'technician',
+                priorKnowledge: formData.priorKnowledge,
+                currentSalary: selectedRole === 'aspirant' ? '0' : formData.currentSalary,
+                domain: formData.domain,
+                vehicleCategory: formData.vehicleCategory || undefined,
+                trainingRole: formData.trainingRole || undefined,
+            };
 
+            await registerUser(registrationData);
 
             navigation.reset({
                 index: 0,
@@ -272,25 +353,29 @@ const VerificationFormScreen: React.FC = () => {
                 leftIcon={<Phone size={20} color={colors.muted} />}
             />
 
-            <Input
-                label={t('createPassword')}
-                placeholder="••••••"
-                secureTextEntry
-                value={formData.password}
-                onChangeText={(v) => updateField('password', v)}
-                error={errors.password}
-                leftIcon={<Lock size={20} color={colors.muted} />}
-            />
+            {!isEditMode && (
+                <Input
+                    label={t('createPassword')}
+                    placeholder="••••••"
+                    secureTextEntry
+                    value={formData.password}
+                    onChangeText={(v) => updateField('password', v)}
+                    error={errors.password}
+                    leftIcon={<Lock size={20} color={colors.muted} />}
+                />
+            )}
 
-            <Input
-                label={t('confirmPassword')}
-                placeholder="••••••"
-                secureTextEntry
-                value={formData.confirmPassword}
-                onChangeText={(v) => updateField('confirmPassword', v)}
-                error={errors.confirmPassword}
-                leftIcon={<Lock size={20} color={colors.muted} />}
-            />
+            {!isEditMode && (
+                <Input
+                    label={t('confirmPassword')}
+                    placeholder="••••••"
+                    secureTextEntry
+                    value={formData.confirmPassword}
+                    onChangeText={(v) => updateField('confirmPassword', v)}
+                    error={errors.confirmPassword}
+                    leftIcon={<Lock size={20} color={colors.muted} />}
+                />
+            )}
 
             <Select
                 label={t('state')}
@@ -309,6 +394,28 @@ const VerificationFormScreen: React.FC = () => {
                 error={errors.city}
                 leftIcon={<MapPin size={20} color={colors.muted} />}
             />
+
+            {/* Domain Selection */}
+            <Select
+                label="Select Domain" // Using literal string as translation might be missing
+                placeholder="Select Domain"
+                options={domains}
+                value={formData.domain}
+                onValueChange={(v) => updateField('domain', v)}
+                error={errors.domain}
+            />
+
+            {/* Vehicle Category for All Relevant Roles (Technician, Sales, Showroom, etc.) */}
+            {selectedRole !== 'aspirant' && selectedRole !== 'recruiter' && (
+                <Select
+                    label="Vehicle Category"
+                    placeholder="Select Vehicle Category"
+                    options={vehicleCategories}
+                    value={formData.vehicleCategory}
+                    onValueChange={(v) => updateField('vehicleCategory', v)}
+                    error={errors.vehicleCategory}
+                />
+            )}
 
             <Input
                 label={t('pincode')}
@@ -389,6 +496,25 @@ const VerificationFormScreen: React.FC = () => {
                 error={errors.qualification}
             />
 
+            {/* BS6 Specific Field: Training Role */}
+            {(formData.domain === 'BS6' || selectedDomain === 'BS6') && selectedRole === 'technician' && (
+                <View style={{ marginTop: spacing.md }}>
+                    <Select
+                        label="Training Role"
+                        placeholder="Select Training Role"
+                        options={[
+                            { label: 'Basic', value: 'Basic' },
+                            { label: 'Engine Expert ', value: 'Engine Expert (Electrical)' },
+                            { label: 'Diagnosis Expert (Electrical)', value: 'Diagnosis Expert' },
+                            { label: 'Diagnosis + Engine Expert', value: 'Diagnosis + Engine Expert' },
+                        ]}
+                        value={formData.trainingRole}
+                        onValueChange={(v) => updateField('trainingRole', v)}
+                        error={errors.trainingRole} // We need to add error handling for this too if required
+                    />
+                </View>
+            )}
+
             {formData.qualification === 'other' && (
                 <Input
                     label={t('specifyQualification')} // Ensure translation exists or use literal
@@ -407,10 +533,15 @@ const VerificationFormScreen: React.FC = () => {
                         { label: 'Fresher (No Experience)', value: 'fresher' }
                     ] :
                     [
-                        { label: '0-1 years', value: '0-1' }, // Replaces Fresher for professionals
+                        { label: '0-1 years', value: '0-1' },
                         { label: '1-2 years', value: '1-2' },
-                        { label: '2-5 years', value: '2-5' },
-                        { label: '5+ years', value: '5+' },
+                        { label: '2-3 years', value: '2-3' },
+                        { label: '3-4 years', value: '3-4' },
+                        { label: '4-5 years', value: '4-5' },
+                        { label: '5-6 years', value: '5-6' },
+                        { label: '6-7 years', value: '6-7' },
+                        { label: '7-8 years', value: '7-8' },
+                        { label: '8+ years', value: '8+' },
                     ]
                 }
                 value={formData.experience}
@@ -467,6 +598,19 @@ const VerificationFormScreen: React.FC = () => {
                             </TouchableOpacity>
                         ))}
                     </View>
+
+                    {/* Input for Other Brand */}
+                    {formData.brands.includes('Other') && (
+                        <View style={{ marginTop: spacing.md }}>
+                            <Input
+                                label={t('specifyBrand') || "Specify Brand Name"}
+                                placeholder="Enter other brand name"
+                                value={formData.otherBrandName}
+                                onChangeText={(v) => updateField('otherBrandName', v)}
+                                error={errors.otherBrandName}
+                            />
+                        </View>
+                    )}
                 </View>
             )}
         </>
@@ -500,6 +644,18 @@ const VerificationFormScreen: React.FC = () => {
                 <Text style={styles.reviewLabel}>{t('qualification')}</Text>
                 <Text style={styles.reviewValue}>{formData.qualification}</Text>
             </View>
+
+            <View style={styles.reviewItem}>
+                <Text style={styles.reviewLabel}>Domain</Text>
+                <Text style={styles.reviewValue}>{formData.domain}</Text>
+            </View>
+
+            {formData.vehicleCategory ? (
+                <View style={styles.reviewItem}>
+                    <Text style={styles.reviewLabel}>Vehicle Category</Text>
+                    <Text style={styles.reviewValue}>{formData.vehicleCategory}</Text>
+                </View>
+            ) : null}
 
             {selectedRole !== 'aspirant' && (
                 <>
@@ -592,7 +748,7 @@ const VerificationFormScreen: React.FC = () => {
                         {t('step')} {step}/{selectedRole === 'aspirant' ? 1 : 3}
                     </Text>
                     <Text style={styles.headerSubtitle}>
-                        {step === 1 ? t('basicDetails') : step === 2 ? t('professionalDetails') : t('reviewSubmit')}
+                        {step === 1 ? (isEditMode ? 'Edit Basic Details' : t('basicDetails')) : step === 2 ? t('professionalDetails') : t('reviewSubmit')}
                     </Text>
 
                     <View style={styles.progressContainer}>
@@ -617,11 +773,11 @@ const VerificationFormScreen: React.FC = () => {
                             </Button>
                         ) : selectedRole === 'aspirant' && step === 1 ? (
                             <Button onPress={handleNext} loading={isLoading} fullWidth>
-                                {t('submit')}
+                                {isEditMode ? 'Update Profile' : t('submit')}
                             </Button>
                         ) : (
                             <Button onPress={handleSubmit} loading={isLoading} fullWidth>
-                                {t('submit')}
+                                {isEditMode ? 'Update Profile' : t('submit')}
                             </Button>
                         )}
                     </View>
@@ -630,6 +786,12 @@ const VerificationFormScreen: React.FC = () => {
             {renderTermsModal()}
         </SafeAreaView>
     );
+};
+
+const useRoute = () => {
+    // Quick shim if @react-navigation/native useRoute is not imported or typed
+    const { useRoute: originalUseRoute } = require('@react-navigation/native');
+    return originalUseRoute();
 };
 
 const styles = StyleSheet.create({

@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
 import {
     Briefcase, MapPin, CheckCircle, Clock, Building2,
-    Calendar, Users, Award, Home, Zap, Send
+    Calendar, Users, Award, Home, Zap, Send, XCircle
 } from 'lucide-react-native';
 import { useUser } from '../contexts/UserContext';
-import { query } from '../lib/database';
+import { getUserApplications } from '../lib/api';
 
 // Type for applied job with job details
 interface AppliedJob {
@@ -26,6 +26,7 @@ interface AppliedJob {
     has_incentive: boolean;
     stay_provided: boolean;
     number_of_people: string;
+    job_description: string;
 }
 
 export default function AppliedJobsScreen() {
@@ -33,34 +34,15 @@ export default function AppliedJobsScreen() {
     const [applications, setApplications] = useState<AppliedJob[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [selectedJob, setSelectedJob] = useState<AppliedJob | null>(null);
+    const [modalVisible, setModalVisible] = useState(false);
 
-    // Fetch user's applications with job details
+    // Fetch user's applications with job details via API
     const fetchApplications = useCallback(async () => {
         if (!userData?.id) return;
 
         try {
-            const result = await query<AppliedJob>(
-                `SELECT 
-                    ja.id, 
-                    ja.job_post_id, 
-                    ja.status, 
-                    ja.applied_at,
-                    jp.brand,
-                    jp.role_required,
-                    jp.city,
-                    jp.pincode,
-                    jp.salary_min,
-                    jp.salary_max,
-                    jp.experience,
-                    jp.has_incentive,
-                    jp.stay_provided,
-                    jp.number_of_people
-                 FROM job_applications ja
-                 JOIN job_posts jp ON ja.job_post_id = jp.id
-                 WHERE ja.user_id = $1
-                 ORDER BY ja.applied_at DESC`,
-                [userData.id]
-            );
+            const result = await getUserApplications(userData.id);
             setApplications(result);
         } catch (error) {
             console.error('Error fetching applications:', error);
@@ -144,7 +126,14 @@ export default function AppliedJobsScreen() {
         const isRecent = new Date(item.applied_at) > new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
         return (
-            <View style={styles.jobCard}>
+            <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => {
+                    setSelectedJob(item);
+                    setModalVisible(true);
+                }}
+                style={styles.jobCard}
+            >
                 {/* Applied Badge */}
                 <View style={styles.appliedBadge}>
                     <CheckCircle size={12} color="#fff" />
@@ -219,7 +208,57 @@ export default function AppliedJobsScreen() {
                         </Text>
                     </View>
                 </View>
-            </View>
+
+                {/* Workflow Tracker (Candidates) */}
+                <View style={styles.workflowSection}>
+                    <Text style={styles.workflowTitle}>Application Status</Text>
+                    <View style={styles.workflowContainer}>
+                        {/* Step 1: Applied */}
+                        <View style={styles.workflowStep}>
+                            <View style={[styles.stepCircle, { backgroundColor: '#10b981' }]}>
+                                <CheckCircle size={10} color="#fff" />
+                            </View>
+                            <Text style={styles.stepLabel}>Applied</Text>
+                        </View>
+
+                        <View style={[styles.stepLine, { backgroundColor: item.status !== 'applied' ? '#10b981' : '#e2e8f0' }]} />
+
+                        {/* Step 2: In Review (Viewed) */}
+                        <View style={styles.workflowStep}>
+                            <View style={[styles.stepCircle, {
+                                backgroundColor: (item.status === 'viewed' || item.status === 'shortlisted' || item.status === 'interview' || item.status === 'hired' || item.status === 'rejected') ? '#10b981' : '#e2e8f0'
+                            }]}>
+                                {(item.status === 'viewed' || item.status === 'shortlisted' || item.status === 'interview' || item.status === 'hired' || item.status === 'rejected') ? <CheckCircle size={10} color="#fff" /> : <Clock size={10} color="#94a3b8" />}
+                            </View>
+                            <Text style={styles.stepLabel}>In Review</Text>
+                        </View>
+
+                        <View style={[styles.stepLine, { backgroundColor: (item.status === 'shortlisted' || item.status === 'interview' || item.status === 'hired' || item.status === 'rejected') ? '#10b981' : '#e2e8f0' }]} />
+
+                        {/* Step 3: Shortlisted / Interview */}
+                        <View style={styles.workflowStep}>
+                            <View style={[styles.stepCircle, {
+                                backgroundColor: (item.status === 'shortlisted' || item.status === 'interview' || item.status === 'hired') ? '#10b981' : (item.status === 'rejected' ? '#ef4444' : '#e2e8f0')
+                            }]}>
+                                {item.status === 'rejected' ? <XCircle size={10} color="#fff" /> : ((item.status === 'shortlisted' || item.status === 'interview' || item.status === 'hired') ? <Users size={10} color="#fff" /> : <Zap size={10} color="#94a3b8" />)}
+                            </View>
+                            <Text style={styles.stepLabel}>{item.status === 'rejected' ? 'Rejected' : 'Shortlist'}</Text>
+                        </View>
+
+                        <View style={[styles.stepLine, { backgroundColor: item.status === 'hired' ? '#10b981' : '#e2e8f0' }]} />
+
+                        {/* Step 4: Hired */}
+                        <View style={styles.workflowStep}>
+                            <View style={[styles.stepCircle, {
+                                backgroundColor: item.status === 'hired' ? '#10b981' : '#e2e8f0'
+                            }]}>
+                                {item.status === 'hired' ? <Award size={10} color="#fff" /> : <Award size={10} color="#94a3b8" />}
+                            </View>
+                            <Text style={styles.stepLabel}>Hired</Text>
+                        </View>
+                    </View>
+                </View>
+            </TouchableOpacity>
         );
     };
 
@@ -266,6 +305,88 @@ export default function AppliedJobsScreen() {
                     ListEmptyComponent={EmptyState}
                 />
             )}
+
+
+            {/* Job Description Modal */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={modalVisible}
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Job Details</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
+                                <XCircle size={24} color={colors.muted} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.modalBody} contentContainerStyle={{ paddingBottom: spacing.xl }}>
+                            {selectedJob && (
+                                <>
+                                    <View style={styles.modalJobHeader}>
+                                        <View style={[styles.iconContainer, { width: 60, height: 60 }]}>
+                                            <Briefcase size={30} color={colors.primary} />
+                                        </View>
+                                        <View style={{ flex: 1, justifyContent: 'center' }}>
+                                            <Text style={[styles.roleText, { fontSize: 18 }]}>{getRoleLabel(selectedJob.role_required)}</Text>
+                                            <Text style={[styles.companyText, { fontSize: 14 }]}>{selectedJob.brand}</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.modalDivider} />
+
+                                    <Text style={styles.modalSectionTitle}>Job Description</Text>
+                                    <Text style={styles.modalDescription}>
+                                        {selectedJob.job_description || 'No description provided.'}
+                                    </Text>
+
+                                    <View style={styles.modalDivider} />
+
+                                    <View style={styles.modalDetailRow}>
+                                        <View style={styles.modalDetailItem}>
+                                            <Text style={styles.modalDetailLabel}>Salary</Text>
+                                            <Text style={styles.modalDetailValue}>{formatSalary(selectedJob.salary_min, selectedJob.salary_max)}</Text>
+                                        </View>
+                                        <View style={styles.modalDetailItem}>
+                                            <Text style={styles.modalDetailLabel}>Location</Text>
+                                            <Text style={styles.modalDetailValue}>{selectedJob.city}</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={[styles.modalDetailRow, { marginTop: spacing.md }]}>
+                                        <View style={styles.modalDetailItem}>
+                                            <Text style={styles.modalDetailLabel}>Experience</Text>
+                                            <Text style={styles.modalDetailValue}>{selectedJob.experience}</Text>
+                                        </View>
+                                        <View style={styles.modalDetailItem}>
+                                            <Text style={styles.modalDetailLabel}>Vacancies</Text>
+                                            <Text style={styles.modalDetailValue}>{selectedJob.number_of_people}</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={[styles.statusBadge, { alignSelf: 'flex-start', marginTop: spacing.lg, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: getStatusConfig(selectedJob.status).bgColor }]}>
+                                        {(() => {
+                                            const config = getStatusConfig(selectedJob.status);
+                                            const Icon = config.icon;
+                                            return (
+                                                <>
+                                                    <Icon size={16} color={config.color} />
+                                                    <Text style={[styles.statusText, { color: config.color, fontSize: 12 }]}>
+                                                        Current Status: {config.text}
+                                                    </Text>
+                                                </>
+                                            )
+                                        })()}
+                                    </View>
+                                </>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -483,5 +604,131 @@ const styles = StyleSheet.create({
         color: colors.muted,
         marginTop: spacing.xs,
         textAlign: 'center',
+    },
+
+    // Workflow Tracker Styles (Copied & adapted)
+    workflowSection: {
+        marginTop: spacing.md,
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: '#f1f5f9',
+    },
+    workflowTitle: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: colors.muted,
+        marginBottom: 12,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    workflowContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 0,
+    },
+    workflowStep: {
+        alignItems: 'center',
+        zIndex: 1,
+        width: 50,
+    },
+    stepCircle: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: '#e2e8f0',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 4,
+    },
+    stepLine: {
+        flex: 1,
+        height: 2,
+        backgroundColor: '#e2e8f0',
+        marginTop: -18, // Align with circles
+        marginHorizontal: -10,
+    },
+    stepLabel: {
+        fontSize: 9,
+        fontWeight: '600',
+        color: '#64748b',
+        marginTop: 2,
+        textAlign: 'center',
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        height: '80%',
+        padding: spacing.lg,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: -2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 10,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: spacing.lg,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: colors.foreground,
+    },
+    closeButton: {
+        padding: 4,
+    },
+    modalBody: {
+        flex: 1,
+    },
+    modalJobHeader: {
+        flexDirection: 'row',
+        gap: spacing.md,
+        marginBottom: spacing.lg,
+    },
+    modalDivider: {
+        height: 1,
+        backgroundColor: colors.border,
+        marginVertical: spacing.md,
+    },
+    modalSectionTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: colors.foreground,
+        marginBottom: spacing.sm,
+    },
+    modalDescription: {
+        fontSize: 14,
+        color: '#475569',
+        lineHeight: 22,
+    },
+    modalDetailRow: {
+        flexDirection: 'row',
+        gap: spacing.lg,
+    },
+    modalDetailItem: {
+        flex: 1,
+    },
+    modalDetailLabel: {
+        fontSize: 12,
+        color: colors.muted,
+        marginBottom: 4,
+    },
+    modalDetailValue: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.foreground,
     },
 });

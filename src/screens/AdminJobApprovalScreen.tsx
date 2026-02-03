@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
-import { query } from '../lib/database';
+import { getPendingJobs, approveJob, rejectJob } from '../lib/api';
 
 interface PendingJob {
     id: number;
@@ -44,15 +44,7 @@ export default function AdminJobApprovalScreen() {
 
     const fetchPendingJobs = useCallback(async () => {
         try {
-            const result = await query<PendingJob>(
-                `SELECT jp.id, jp.brand, jp.role_required, jp.number_of_people, jp.experience,
-                        jp.salary_min, jp.salary_max, jp.city, jp.pincode, jp.status, jp.created_at,
-                        r.company_name, r.phone_number as recruiter_phone
-                 FROM job_posts jp
-                 LEFT JOIN recruiters r ON jp.recruiter_id = r.id
-                 WHERE jp.status = 'pending'
-                 ORDER BY jp.created_at DESC`
-            );
+            const result = await getPendingJobs();
             setJobs(result);
         } catch (error) {
             console.error('Error fetching pending jobs:', error);
@@ -75,7 +67,7 @@ export default function AdminJobApprovalScreen() {
     const handleApprove = async (jobId: number) => {
         setProcessingId(jobId);
         try {
-            await query(`UPDATE job_posts SET status = 'approved' WHERE id = $1`, [jobId]);
+            await approveJob(jobId);
             const updatedJobs = jobs.filter(j => j.id !== jobId);
             setJobs(updatedJobs);
 
@@ -117,7 +109,7 @@ export default function AdminJobApprovalScreen() {
                     onPress: async () => {
                         setProcessingId(jobId);
                         try {
-                            await query(`UPDATE job_posts SET status = 'rejected' WHERE id = $1`, [jobId]);
+                            await rejectJob(jobId);
                             setJobs(prev => prev.filter(j => j.id !== jobId));
                             Alert.alert('Rejected', 'Job has been rejected');
                         } catch (error) {

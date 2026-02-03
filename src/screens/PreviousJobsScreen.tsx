@@ -14,13 +14,13 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
     ArrowLeft, MapPin, Users, Clock, CheckCircle, Briefcase,
-    Calendar, Zap, Building2, Home, Award, Timer, XCircle
+    Calendar, Zap, Building2, Home, Award, Timer, XCircle, Edit2
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { query } from '../lib/database';
+import { getRecruiterJobs } from '../lib/api';
 
 type PreviousJobsNavigationProp = StackNavigationProp<RootStackParamList, 'PreviousJobs'>;
 
@@ -40,6 +40,8 @@ interface JobPost {
     urgency: string;
     created_at: string;
     application_count?: number;
+    training_role?: string;
+    vehicle_category?: string;
 }
 
 const PreviousJobsScreen: React.FC = () => {
@@ -59,15 +61,10 @@ const PreviousJobsScreen: React.FC = () => {
 
     const loadJobs = async () => {
         try {
-            const result = await query<JobPost>(
-                `SELECT jp.*, 
-                        (SELECT COUNT(*) FROM job_applications ja WHERE ja.job_post_id = jp.id) as application_count
-                 FROM job_posts jp 
-                 WHERE recruiter_id = $1 
-                 ORDER BY created_at DESC`,
-                [recruiterData?.id]
-            );
-            setJobs(result);
+            if (recruiterData?.id) {
+                const result = await getRecruiterJobs(recruiterData.id);
+                setJobs(result);
+            }
         } catch (error) {
             console.error('Error loading jobs:', error);
         } finally {
@@ -100,9 +97,11 @@ const PreviousJobsScreen: React.FC = () => {
 
     const getRoleLabel = (role: string) => {
         switch (role) {
-            case 'technician': return 'EV Technician';
-            case 'sales': return 'EV Showroom Manager';
-            case 'workshop': return 'EV Workshop Manager';
+            case 'technician': return t('evTechnician');
+            case 'bs6_technician': return t('bs6Technician');
+            case 'sales': return t('showroomManager');
+            case 'workshop': return t('workshopManager');
+            case 'fresher': return t('fresher');
             default: return role;
         }
     };
@@ -116,8 +115,11 @@ const PreviousJobsScreen: React.FC = () => {
     };
 
     const formatExperience = (exp: string) => {
-        if (!exp || exp === 'fresher') return 'Fresher';
-        return exp + ' Years';
+        if (!exp || exp === 'fresher') return t('fresher'); // "Fresher"
+        // Check if exp already has "Years" or similar (though likely stored as just number or "1-2")
+        // User wants "1+ Experienced" or "1+ Years Experienced"
+        // Let's go with "X Years Experienced" as requested
+        return `${exp} Years Experienced`;
     };
 
     const getTimeAgo = (dateStr: string) => {
@@ -183,11 +185,24 @@ const PreviousJobsScreen: React.FC = () => {
                                         <Briefcase size={24} color={colors.primary} />
                                     </View>
                                     <View style={styles.headerInfo}>
-                                        <Text style={styles.roleText}>{getRoleLabel(job.role_required)}</Text>
+                                        <Text style={styles.roleText}>
+                                            {getRoleLabel(job.role_required)}
+                                            {job.vehicle_category ? ` (${job.vehicle_category})` : ''}
+                                        </Text>
+                                        {job.training_role && (
+                                            <Text style={{ fontSize: 13, color: colors.primary, marginTop: 2, fontWeight: '500' }}>
+                                                {job.training_role}
+                                            </Text>
+                                        )}
                                         <Text style={styles.companyText}>{job.brand}</Text>
                                     </View>
-                                    <TouchableOpacity style={styles.chevronBtn}>
-                                        <View style={[styles.statusDot, { backgroundColor: statusConfig.color }]} />
+
+                                    {/* Edit Button */}
+                                    <TouchableOpacity
+                                        style={styles.editBtn}
+                                        onPress={() => navigation.navigate('PostJob', { isEditMode: true, jobData: job } as any)}
+                                    >
+                                        <Edit2 size={18} color={colors.primary} />
                                     </TouchableOpacity>
                                 </View>
 
@@ -236,6 +251,12 @@ const PreviousJobsScreen: React.FC = () => {
                                             <Text style={[styles.tagText, { color: '#7c3aed' }]}>Stay</Text>
                                         </View>
                                     )}
+                                    <View style={[styles.tag, { backgroundColor: '#e0f2fe' }]}>
+                                        <Briefcase size={12} color="#0284c7" />
+                                        <Text style={[styles.tagText, { color: '#0284c7' }]}>
+                                            {formatExperience(job.experience)}
+                                        </Text>
+                                    </View>
                                 </View>
 
                                 {/* Divider */}
@@ -243,12 +264,18 @@ const PreviousJobsScreen: React.FC = () => {
 
                                 {/* Footer */}
                                 <View style={styles.cardFooter}>
-                                    <View style={styles.applicantInfo}>
-                                        <Users size={14} color={colors.muted} />
-                                        <Text style={styles.applicantText}>
+                                    <TouchableOpacity
+                                        style={styles.applicantInfo}
+                                        onPress={() => navigation.navigate('JobApplicants', {
+                                            jobId: job.id,
+                                            jobTitle: `${getRoleLabel(job.role_required)}${job.vehicle_category ? ` (${job.vehicle_category})` : ''}`
+                                        } as any)}
+                                    >
+                                        <Users size={14} color={colors.primary} />
+                                        <Text style={[styles.applicantText, { color: colors.primary, textDecorationLine: 'underline' }]}>
                                             {job.application_count || 0} applicant{(job.application_count || 0) !== 1 ? 's' : ''}
                                         </Text>
-                                    </View>
+                                    </TouchableOpacity>
                                     <View style={styles.footerMeta}>
                                         <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
                                             <Text style={[styles.statusText, { color: statusConfig.color }]}>
@@ -428,8 +455,12 @@ const styles = StyleSheet.create({
         color: colors.muted,
         marginTop: 2,
     },
-    chevronBtn: {
+    editBtn: {
         padding: spacing.xs,
+        backgroundColor: '#f0fdf4',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#bbf7d0',
     },
     statusDot: {
         width: 12,

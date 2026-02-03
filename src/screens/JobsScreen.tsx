@@ -28,7 +28,7 @@ import {
 } from 'lucide-react-native';
 import { useUser } from '../contexts/UserContext';
 import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
-import { query } from '../lib/database';
+import { getApprovedJobs, getUserAppliedJobIds, applyToJob } from '../lib/api';
 import { useNavigation } from '@react-navigation/native';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -47,10 +47,11 @@ interface JobPost {
     city: string;
     stay_provided: boolean;
     has_incentive: boolean;
-}
-
-interface Application {
-    job_post_id: number;
+    training_role?: string;
+    vehicle_category?: string;
+    urgency?: string;
+    created_at?: string;
+    job_description?: string;
 }
 
 export default function JobsScreen() {
@@ -67,16 +68,10 @@ export default function JobsScreen() {
     const [filteredJobs, setFilteredJobs] = useState<JobPost[]>([]);
     const [salaryFilter, setSalaryFilter] = useState<number | null>(null); // Min salary filter
 
-    // Fetch jobs from database
+    // Fetch jobs from API
     const fetchJobs = useCallback(async () => {
         try {
-            const result = await query<JobPost>(
-                `SELECT id, brand, role_required, number_of_people, experience, 
-                        salary_min, salary_max, pincode, city, stay_provided, has_incentive
-                 FROM job_posts 
-                 WHERE is_active = true AND status = 'approved'
-                 ORDER BY created_at DESC`
-            );
+            const result = await getApprovedJobs();
             setJobs(result);
             setFilteredJobs(result);
         } catch (error) {
@@ -90,11 +85,8 @@ export default function JobsScreen() {
         if (!userData?.id) return;
 
         try {
-            const result = await query<Application>(
-                `SELECT job_post_id FROM job_applications WHERE user_id = $1`,
-                [userData.id]
-            );
-            setAppliedJobs(new Set(result.map(r => r.job_post_id)));
+            const appliedIds = await getUserAppliedJobIds(userData.id);
+            setAppliedJobs(new Set(appliedIds));
         } catch (error) {
             console.error('Error fetching applied jobs:', error);
         }
@@ -127,13 +119,7 @@ export default function JobsScreen() {
         setApplyingTo(jobId);
 
         try {
-            await query(
-                `INSERT INTO job_applications (user_id, job_post_id, status) 
-                 VALUES ($1, $2, 'applied')
-                 ON CONFLICT (user_id, job_post_id) DO NOTHING`,
-                [userData.id, jobId]
-            );
-
+            await applyToJob(userData.id, jobId);
             setAppliedJobs(prev => new Set([...prev, jobId]));
         } catch (error) {
             console.error('Error applying to job:', error);
@@ -197,10 +183,30 @@ export default function JobsScreen() {
         return `Up to ${formatK(max!)}`;
     };
 
-    // Render job card
+    // Get role label
+    const getRoleLabel = (role: string) => {
+        switch (role) {
+            case 'technician': return 'EV Technician';
+            case 'bs6_technician': return 'BS6 Technician';
+            case 'sales': return 'Showroom Manager';
+            case 'workshop': return 'Workshop Manager';
+            case 'fresher': return 'Fresher';
+            default: return role || 'Professional';
+        }
+    };
+
+    // Check if job is new (within 7 days)
+    const isNewJob = (dateStr?: string) => {
+        if (!dateStr) return true;
+        const date = new Date(dateStr);
+        return date > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    };
+
+    // Render job card (redesigned to match recruiter style)
     const renderJobCard = ({ item }: { item: JobPost }) => {
         const isApplied = appliedJobs.has(item.id);
         const isApplying = applyingTo === item.id;
+        const isNew = isNewJob(item.created_at);
 
         return (
             <View style={[
@@ -215,49 +221,84 @@ export default function JobsScreen() {
                     </View>
                 )}
 
-                {/* Company Header */}
+                {/* Card Header - Similar to PreviousJobsScreen */}
                 <View style={[styles.cardHeader, isApplied && styles.blurredContent]}>
-                    <View style={styles.companyIcon}>
-                        <Text style={styles.companyInitial}>
-                            {item.brand?.charAt(0)?.toUpperCase() || 'J'}
-                        </Text>
+                    <View style={styles.iconContainer}>
+                        <Briefcase size={24} color={colors.primary} />
                     </View>
-                    <View style={styles.companyInfo}>
-                        <Text style={styles.companyName}>{item.brand || 'Company'}</Text>
-                        <Text style={styles.roleText}>{item.role_required || 'Job Role'}</Text>
+                    <View style={styles.headerInfo}>
+                        <Text style={styles.roleTitle}>
+                            {getRoleLabel(item.role_required)}
+                            {item.vehicle_category ? ` (${item.vehicle_category})` : ''}
+                        </Text>
+                        {item.training_role && (
+                            <Text style={styles.trainingRoleText}>
+                                {item.training_role}
+                            </Text>
+                        )}
+                        <Text style={styles.brandText}>{item.brand || 'Company'}</Text>
                     </View>
                 </View>
 
-                {/* Job Details */}
-                <View style={[styles.detailsGrid, isApplied && styles.blurredContent]}>
-                    <View style={styles.detailItem}>
-                        <MapPin size={14} color={colors.muted} />
-                        <Text style={styles.detailText}>
-                            {item.city ? `${item.city} (${item.pincode})` : item.pincode || 'Location TBD'}
-                        </Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                        <Building2 size={14} color={colors.muted} />
-                        <Text style={styles.detailText}>{formatExperience(item.experience)}</Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                        <Text style={styles.detailText}>
-                            {formatSalary(item.salary_min, item.salary_max)}
-                        </Text>
-                    </View>
-                    <View style={styles.detailItem}>
-                        <Users size={14} color={colors.muted} />
-                        <Text style={styles.detailText}>{item.number_of_people || '1'} people</Text>
-                    </View>
+                {/* Salary */}
+                <Text style={[styles.salaryText, isApplied && styles.blurredContent]}>
+                    {formatSalary(item.salary_min, item.salary_max)} per month
+                </Text>
+
+                {/* Location */}
+                <View style={[styles.locationRow, isApplied && styles.blurredContent]}>
+                    <MapPin size={16} color="#ef4444" />
+                    <Text style={styles.locationText}>
+                        {item.city ? `${item.city} (${item.pincode})` : item.pincode || 'Location TBD'}
+                    </Text>
                 </View>
 
-                {/* Tags */}
-                {item.stay_provided && (
-                    <View style={[styles.tagRow, isApplied && styles.blurredContent]}>
-                        <View style={styles.tag}>
-                            <Home size={12} color={colors.primary} />
-                            <Text style={styles.tagText}>Stay Provided: Yes</Text>
+                {/* Tags Row */}
+                <View style={[styles.tagsContainer, isApplied && styles.blurredContent]}>
+                    {isNew && (
+                        <View style={[styles.tagChip, styles.tagNew]}>
+                            <Text style={styles.tagChipIcon}>⚡</Text>
+                            <Text style={[styles.tagChipText, { color: '#059669' }]}>New</Text>
                         </View>
+                    )}
+                    <View style={[styles.tagChip, styles.tagRegular]}>
+                        <Text style={styles.tagChipIcon}>⏱</Text>
+                        <Text style={styles.tagChipText}>
+                            {item.urgency === 'immediate' ? 'Urgent' : 'Regular'}
+                        </Text>
+                    </View>
+                    <View style={[styles.tagChip, styles.tagVacancies]}>
+                        <Users size={12} color="#ea580c" />
+                        <Text style={[styles.tagChipText, { color: '#ea580c' }]}>
+                            {item.number_of_people || '1'} Vacancies
+                        </Text>
+                    </View>
+                </View>
+
+                {/* Experience Tag + Vehicle Category Tag */}
+                <View style={[styles.tagsRow2, isApplied && styles.blurredContent]}>
+                    <View style={styles.experienceTag}>
+                        <Building2 size={14} color="#ca8a04" />
+                        <Text style={styles.experienceTagText}>
+                            {formatExperience(item.experience)}
+                        </Text>
+                    </View>
+                    {item.vehicle_category && (
+                        <View style={styles.vehicleCategoryTag}>
+                            <Text style={styles.vehicleCategoryText}>
+                                🏍️ {item.vehicle_category === '2W' ? '2 Wheeler' : '3 Wheeler'}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Job Description */}
+                {item.job_description && (
+                    <View style={[styles.jobDescriptionContainer, isApplied && styles.blurredContent]}>
+                        <Text style={styles.jobDescriptionLabel}>About the Role:</Text>
+                        <Text style={styles.jobDescriptionText} numberOfLines={3}>
+                            {item.job_description}
+                        </Text>
                     </View>
                 )}
 
@@ -555,6 +596,143 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: colors.foreground,
         fontWeight: '500',
+    },
+    // New styles for redesigned card
+    iconContainer: {
+        width: 50,
+        height: 50,
+        borderRadius: 12,
+        backgroundColor: colors.primary + '15',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerInfo: {
+        flex: 1,
+    },
+    roleTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: colors.primary,
+    },
+    trainingRoleText: {
+        fontSize: 14,
+        color: colors.primary,
+        fontWeight: '500',
+        marginTop: 2,
+    },
+    brandText: {
+        fontSize: 13,
+        color: colors.muted,
+        marginTop: 2,
+    },
+    salaryText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: colors.primary,
+        marginTop: spacing.sm,
+        marginBottom: spacing.xs,
+    },
+    locationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: spacing.md,
+    },
+    locationText: {
+        fontSize: 14,
+        color: colors.muted,
+    },
+    tagsContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: spacing.xs,
+        marginBottom: spacing.sm,
+    },
+    tagChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        borderWidth: 1,
+        gap: 4,
+    },
+    tagNew: {
+        backgroundColor: '#d1fae5',
+        borderColor: '#86efac',
+    },
+    tagRegular: {
+        backgroundColor: '#f3f4f6',
+        borderColor: '#d1d5db',
+    },
+    tagVacancies: {
+        backgroundColor: '#ffedd5',
+        borderColor: '#fdba74',
+    },
+    tagChipText: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: colors.foreground,
+    },
+    tagChipIcon: {
+        fontSize: 12,
+    },
+    experienceTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fef9c3',
+        borderColor: '#fde047',
+        borderWidth: 1,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        gap: 4,
+    },
+    experienceTagText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#ca8a04',
+    },
+    tagsRow2: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: spacing.xs,
+        marginBottom: spacing.md,
+    },
+    vehicleCategoryTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#dbeafe',
+        borderColor: '#93c5fd',
+        borderWidth: 1,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        gap: 4,
+    },
+    vehicleCategoryText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#1d4ed8',
+    },
+    jobDescriptionContainer: {
+        backgroundColor: '#f9fafb',
+        borderRadius: 8,
+        padding: spacing.sm,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    jobDescriptionLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: colors.foreground,
+        marginBottom: 4,
+    },
+    jobDescriptionText: {
+        fontSize: 13,
+        color: colors.muted,
+        lineHeight: 18,
     },
     applyButton: {
         flexDirection: 'row',

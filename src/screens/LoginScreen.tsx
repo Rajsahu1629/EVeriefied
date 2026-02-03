@@ -10,6 +10,7 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
+    Linking
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -21,7 +22,7 @@ import { LanguageToggle } from '../components/LanguageToggle';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { query } from '../lib/database';
+import { loginUser } from '../lib/api';
 
 type LoginNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -57,37 +58,48 @@ const LoginScreen: React.FC = () => {
 
         setIsLoading(true);
         try {
-            // Query the database for the user
-            const users = await query<any>(
-                `SELECT * FROM users WHERE phone_number = $1 AND password = $2`,
-                [phoneNumber, password]
-            );
+            // Admin login check first
+            if (phoneNumber === '9473928468' && password === 'admin123@') {
+                console.log('Admin login successful!');
+                setIsLoading(false);
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'AdminDashboard' }],
+                });
+                return;
+            }
 
-            if (users.length === 0) {
+            // Call API for user login
+            const response = await loginUser(phoneNumber, password);
+
+            if (!response.success || !response.user) {
                 Alert.alert(t('error'), t('loginFailed'));
                 setIsLoading(false);
                 return;
             }
 
-            const dbUser = users[0];
+            const user = response.user;
             const userData: UserData = {
-                id: dbUser.id,
-                fullName: dbUser.full_name,
-                phoneNumber: dbUser.phone_number,
-                state: dbUser.state || '',
-                city: dbUser.city || '',
-                pincode: dbUser.pincode || '',
-                qualification: dbUser.qualification || '',
-                experience: dbUser.experience || '',
-                currentWorkshop: dbUser.current_workshop || '',
-                brandWorkshop: dbUser.brand_workshop || '',
-                brands: dbUser.brands || [],
-                role: dbUser.role as UserRole,
-                verificationStatus: dbUser.verification_status as VerificationStatus,
-                verificationStep: dbUser.verification_step || 0,
-                quizScore: dbUser.quiz_score || 0,
-                totalQuestions: dbUser.total_questions || 0,
-                lastQuizAttempt: dbUser.last_quiz_attempt,
+                id: user.id,
+                fullName: user.fullName,
+                phoneNumber: user.phoneNumber,
+                state: user.state || '',
+                city: user.city || '',
+                pincode: user.pincode || '',
+                qualification: user.qualification || '',
+                experience: user.experience || '',
+                currentWorkshop: user.currentWorkshop || '',
+                brandWorkshop: user.brandWorkshop || '',
+                brands: user.brands || [],
+                role: user.role as UserRole,
+                verificationStatus: user.verificationStatus as VerificationStatus,
+                verificationStep: user.verificationStep || 0,
+                quizScore: user.quizScore || 0,
+                totalQuestions: user.totalQuestions || 0,
+                lastQuizAttempt: user.lastQuizAttempt,
+                domain: user.domain,
+                vehicle_category: user.vehicle_category,
+                training_role: user.training_role,
             };
 
             setUserData(userData);
@@ -96,9 +108,10 @@ const LoginScreen: React.FC = () => {
                 index: 0,
                 routes: [{ name: 'UserDashboard' }],
             });
-        } catch (error) {
-            console.error('Login error:', error);
-            Alert.alert(t('error'), t('networkError'));
+        } catch (error: any) {
+            // Show the actual error message from API (e.g., "User not registered")
+            const errorMessage = error?.message || t('networkError');
+            Alert.alert(t('error'), errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -164,6 +177,17 @@ const LoginScreen: React.FC = () => {
                             error={errors.password}
                             leftIcon={<Lock size={20} color={colors.muted} />}
                         />
+
+                        <TouchableOpacity
+                            style={styles.forgotPasswordContainer}
+                            onPress={() => {
+                                const phone = phoneNumber || "your_registered_number";
+                                const message = encodeURIComponent(`Hello Support, I forgot my password for mobile number: ${phone}`);
+                                Linking.openURL(`whatsapp://send?phone=+919473928468&text=${message}`);
+                            }}
+                        >
+                            <Text style={styles.forgotPasswordText}>{t('forgotPassword')}</Text>
+                        </TouchableOpacity>
 
                         <Button
                             onPress={handleLogin}
@@ -260,6 +284,16 @@ const styles = StyleSheet.create({
         color: colors.muted,
     },
     footerLink: {
+        fontSize: fontSize.sm,
+        color: colors.primary,
+        fontWeight: '600',
+    },
+    forgotPasswordContainer: {
+        alignSelf: 'flex-end',
+        marginTop: spacing.xs,
+        marginBottom: spacing.xs,
+    },
+    forgotPasswordText: {
         fontSize: fontSize.sm,
         color: colors.primary,
         fontWeight: '600',

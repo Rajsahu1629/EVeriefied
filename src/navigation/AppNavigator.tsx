@@ -21,6 +21,9 @@ import PostJobScreen from '../screens/PostJobScreen';
 import PreviousJobsScreen from '../screens/PreviousJobsScreen';
 import AdminJobApprovalScreen from '../screens/AdminJobApprovalScreen';
 import CandidateSearchScreen from '../screens/CandidateSearchScreen';
+import AdminVerificationRecheckScreen from '../screens/AdminVerificationRecheckScreen';
+import AdminDashboardScreen from '../screens/AdminDashboardScreen';
+import JobApplicantsScreen from '../screens/JobApplicantsScreen';
 
 // Navigators
 import UserTabNavigator from './UserTabNavigator';
@@ -44,6 +47,9 @@ export type RootStackParamList = {
     PreviousJobs: undefined;
     AdminJobApproval: undefined;
     CandidateSearch: undefined;
+    AdminVerificationRecheck: undefined;
+    AdminDashboard: undefined;
+    JobApplicants: { jobId: number; jobTitle: string };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -70,12 +76,15 @@ export const AppNavigator = () => {
                 {/* Replaced UserDashboard with Tab Navigator */}
                 <Stack.Screen name="UserDashboard" component={UserTabNavigator} />
 
+                <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
                 <Stack.Screen name="RecruiterDashboard" component={RecruiterDashboardScreen} />
                 <Stack.Screen name="PostJob" component={PostJobScreen} />
                 <Stack.Screen name="PreviousJobs" component={PreviousJobsScreen} />
                 <Stack.Screen name="SkillVerification" component={SkillVerificationScreen} />
                 <Stack.Screen name="AdminJobApproval" component={AdminJobApprovalScreen} />
                 <Stack.Screen name="CandidateSearch" component={CandidateSearchScreen} />
+                <Stack.Screen name="AdminVerificationRecheck" component={AdminVerificationRecheckScreen} />
+                <Stack.Screen name="JobApplicants" component={JobApplicantsScreen} />
             </Stack.Navigator>
         </NavigationContainer>
     );

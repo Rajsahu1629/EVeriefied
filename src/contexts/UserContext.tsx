@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type UserRole = 'technician' | 'sales' | 'workshop' | 'aspirant';
-export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'step1_completed' | 'step2_pending' | 'verified' | 'failed';
+export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'step1_completed' | 'step2_pending' | 'verified' | 'failed' | 'step2_completed' | 'step3_pending';
 export type EntityType = 'dealer' | 'fleet' | 'oem' | 'workshop';
 
 export interface UserData {
@@ -16,13 +16,26 @@ export interface UserData {
     experience: string;
     currentWorkshop: string;
     brandWorkshop?: string;
-    brands: string[];
+    brands: string[]; // Stored as JSON string in DB, but parsed here? Wait, DB stores string, context likely stores parsed object if we parse it. 
+    // Actually the load logic parses JSON.parse(storedUserData).
+    // Let's ensure the Type definition matches what we store.
+
     role: UserRole;
     verificationStatus: VerificationStatus;
     verificationStep?: number;
     quizScore?: number;
     totalQuestions?: number;
     lastQuizAttempt?: string;
+    domain?: 'EV' | 'BS6';
+    vehicle_category?: '2W' | '3W';
+    training_role?: string;
+    is_admin_verified?: boolean;
+
+    // Additional fields needed for Edit Profile
+    current_workshop?: string; // DB uses snake_case, let's keep consistent with how we access
+    brand_workshop?: string;
+    prior_knowledge?: string;
+    current_salary?: string;
 }
 
 export interface RecruiterData {
@@ -35,8 +48,11 @@ export interface RecruiterData {
 interface UserContextType {
     selectedRole: UserRole | 'recruiter' | null;
     setSelectedRole: (role: UserRole | 'recruiter' | null) => void;
+    selectedDomain: 'EV' | 'BS6' | null;
+    setSelectedDomain: (domain: 'EV' | 'BS6' | null) => void;
     userData: UserData | null;
     setUserData: (data: UserData | null) => void;
+    refreshUserData: () => Promise<void>; // Added function
     isLoggedIn: boolean;
     setIsLoggedIn: (value: boolean) => void;
     logout: () => void;
@@ -58,6 +74,7 @@ const IS_RECRUITER_LOGGED_IN_KEY = 'everified_is_recruiter_logged_in';
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [selectedRole, setSelectedRole] = useState<UserRole | 'recruiter' | null>(null);
+    const [selectedDomain, setSelectedDomain] = useState<'EV' | 'BS6' | null>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -137,13 +154,58 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await AsyncStorage.removeItem(IS_RECRUITER_LOGGED_IN_KEY);
     };
 
+    const refreshUserData = async () => {
+        if (!userData?.id) return;
+        try {
+            // Fetch fresh user data from API
+            const { getUser } = await import('../lib/api');
+            const user = await getUser(userData.id);
+
+            if (user) {
+                const mapped: UserData = {
+                    id: user.id,
+                    fullName: user.fullName,
+                    phoneNumber: user.phoneNumber,
+                    state: user.state,
+                    city: user.city,
+                    pincode: user.pincode,
+                    qualification: user.qualification,
+                    experience: user.experience,
+                    currentWorkshop: user.currentWorkshop,
+                    brandWorkshop: user.brandWorkshop,
+                    brands: user.brands,
+                    role: user.role,
+                    verificationStatus: user.verificationStatus,
+                    verificationStep: user.verificationStep,
+                    quizScore: user.quizScore,
+                    totalQuestions: user.totalQuestions,
+                    lastQuizAttempt: user.lastQuizAttempt,
+                    domain: user.domain,
+                    vehicle_category: user.vehicle_category,
+                    training_role: user.training_role,
+                    is_admin_verified: user.is_admin_verified,
+                    current_workshop: user.current_workshop,
+                    brand_workshop: user.brand_workshop,
+                    prior_knowledge: user.prior_knowledge,
+                    current_salary: user.current_salary,
+                };
+                setUserData(mapped);
+            }
+        } catch (e) {
+            console.error("Failed to refresh user data", e);
+        }
+    };
+
     return (
         <UserContext.Provider
             value={{
                 selectedRole,
                 setSelectedRole,
+                selectedDomain,
+                setSelectedDomain,
                 userData,
                 setUserData,
+                refreshUserData,
                 isLoggedIn,
                 setIsLoggedIn,
                 logout,

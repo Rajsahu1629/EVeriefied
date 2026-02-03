@@ -11,7 +11,7 @@ import {
 } from 'lucide-react-native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
-import { query } from '../lib/database';
+import { getLeaderboard, submitQuizScore } from '../lib/api';
 
 // Learning Videos - hardcoded, lightweight
 const LEARNING_ITEMS = [
@@ -66,12 +66,7 @@ export default function LearnScreen() {
     const fetchLeaderboard = async () => {
         setLoadingLB(true);
         try {
-            const result = await query<LeaderboardEntry>(
-                `SELECT u.full_name, qs.score FROM quiz_scores qs 
-                 JOIN users u ON qs.user_id = u.id 
-                 WHERE qs.played_at = CURRENT_DATE
-                 ORDER BY qs.score DESC LIMIT 5`
-            );
+            const result = await getLeaderboard();
             setLeaderboard(result);
         } catch (e) { console.log(e); }
         setLoadingLB(false);
@@ -95,9 +90,7 @@ export default function LearnScreen() {
         const finalScore = score + (lastCorrect ? 10 : 0);
         if (userData?.id) {
             try {
-                await query(`INSERT INTO quiz_scores (user_id, score, played_at) VALUES ($1, $2, CURRENT_DATE)
-                     ON CONFLICT (user_id, played_at) DO UPDATE SET score = GREATEST(quiz_scores.score, $2)`,
-                    [userData.id, finalScore]);
+                await submitQuizScore(userData.id, finalScore);
                 fetchLeaderboard();
             } catch (e) { console.log(e); }
         }

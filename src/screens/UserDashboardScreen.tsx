@@ -92,6 +92,15 @@ const UserDashboardScreen: React.FC = () => {
                     <View>
                         <Text style={styles.welcomeText}>{t('welcome')}</Text>
                         <Text style={styles.userName}>{userData?.fullName}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 }}>
+                            {userData?.domain === 'BS6' && userData?.role === 'technician' ? 'BS6 Technician' :
+                                userData?.role === 'aspirant' ? (userData?.domain === 'BS6' ? 'BS6 Fresher' : t('fresher')) :
+                                    userData?.role === 'technician' ? t('evTechnician') :
+                                        userData?.role === 'sales' ? t('evShowroomManager') :
+                                            userData?.role === 'workshop' ? t('evWorkshopManager') :
+                                                userData?.role === 'workshop' ? t('evWorkshopManager') :
+                                                    (userData?.role ? (userData.role as string).charAt(0).toUpperCase() + (userData.role as string).slice(1) : '')}
+                        </Text>
                     </View>
                     <View style={styles.headerActions}>
                         <LanguageSelector color={colors.primaryForeground} />

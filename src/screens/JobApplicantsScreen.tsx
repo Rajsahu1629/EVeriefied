@@ -9,22 +9,21 @@ import {
     ActivityIndicator,
     Alert,
     StatusBar,
-    TextInput,
     Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-    ArrowLeft, Search, MapPin, Award, Phone, Briefcase,
-    CheckCircle, X, MessageCircle, Clock
+    ArrowLeft, MapPin, Phone, Briefcase,
+    CheckCircle, Award, MessageCircle, Clock
 } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
-import { searchCandidates } from '../lib/api';
+import { getJobApplicants } from '../lib/api';
 import { useLanguage } from '../contexts/LanguageContext';
 
-interface Candidate {
+interface Applicant {
     id: number;
     full_name: string;
     phone_number: string;
@@ -35,71 +34,44 @@ interface Candidate {
     verification_status: string;
     vehicle_category?: string;
     current_salary?: string;
+    applied_at: string;
     is_admin_verified?: boolean;
 }
 
-export default function CandidateSearchScreen() {
+export default function JobApplicantsScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+    const route = useRoute();
+    const params = route.params as { jobId: number; jobTitle: string } | undefined;
+    const jobId = params?.jobId;
+    const jobTitle = params?.jobTitle || 'Job';
     const { t } = useLanguage();
 
-    const [candidates, setCandidates] = useState<Candidate[]>([]);
-    const [filteredCandidates, setFilteredCandidates] = useState<Candidate[]>([]);
+    const [applicants, setApplicants] = useState<Applicant[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [roleFilter, setRoleFilter] = useState<string | null>(null);
-    const [verifiedOnly, setVerifiedOnly] = useState(true);
 
-    const fetchCandidates = useCallback(async () => {
+    const fetchApplicants = useCallback(async () => {
+        if (!jobId) return;
+
         try {
-            // Fetch all candidates using API (no filters, filter locally)
-            const result = await searchCandidates({});
-            setCandidates(result);
+            const result = await getJobApplicants(jobId);
+            setApplicants(result);
         } catch (error) {
-            console.error('Error fetching candidates:', error);
-            Alert.alert('Error', 'Failed to load candidates');
+            console.error('Error fetching applicants:', error);
+            Alert.alert('Error', 'Failed to load applicants');
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [jobId]);
 
     useEffect(() => {
-        fetchCandidates();
-    }, [fetchCandidates]);
-
-    // Filter candidates
-    useEffect(() => {
-        let filtered = [...candidates];
-
-        // Search filter
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase().trim();
-            filtered = filtered.filter(c =>
-                (c.full_name && c.full_name.toLowerCase().includes(q)) ||
-                (c.city && c.city.toLowerCase().includes(q)) ||
-                (c.pincode && c.pincode.includes(q))
-            );
-        }
-
-        // Role filter
-        if (roleFilter) {
-            filtered = filtered.filter(c => c.role === roleFilter);
-        }
-
-        // Verified only filter
-        if (verifiedOnly) {
-            filtered = filtered.filter(c =>
-                c.verification_status === 'verified' || c.verification_status === 'approved'
-            );
-        }
-
-        setFilteredCandidates(filtered);
-    }, [searchQuery, roleFilter, verifiedOnly, candidates]);
+        fetchApplicants();
+    }, [fetchApplicants]);
 
     const onRefresh = () => {
         setRefreshing(true);
-        fetchCandidates();
+        fetchApplicants();
     };
 
     // Mask phone number - show only first 4 digits
@@ -108,18 +80,8 @@ export default function CandidateSearchScreen() {
         return phone.substring(0, 4) + 'XXXXXX';
     };
 
-    // Connect via EVerified - contacts admin WhatsApp
-    const handleConnect = (candidateName: string, role: string, city: string) => {
-        const adminPhone = '919473928468';
-        const message = `Hi EVerified Team!\n\nI'm interested in hiring this candidate:\n\n👤 Name: ${candidateName}\n💼 Role: ${role}\n📍 Location: ${city}\n\nPlease share their contact details.`;
-        Linking.openURL(`whatsapp://send?phone=${adminPhone}&text=${encodeURIComponent(message)}`).catch(() => {
-            Alert.alert('WhatsApp not installed', 'Please install WhatsApp to connect.');
-        });
-    };
-
     const formatExperience = (exp: string) => {
         if (!exp || exp === 'fresher') return t('fresher');
-        // If it's a range like "2-5" or just a number, add "Years Experience"
         return `${exp} ${t('years')} Experienced`;
     };
 
@@ -133,10 +95,17 @@ export default function CandidateSearchScreen() {
         }
     };
 
-    const renderCandidate = ({ item }: { item: Candidate }) => {
-        // Two-tier verification logic:
-        // isTestPassed = user passed the test (verification_status is verified/approved)
-        // isFullyVerified = admin has also verified (is_admin_verified is true)
+    // Connect with Admin via WhatsApp
+    const handleConnectWithAdmin = (candidateName: string, role: string, city: string) => {
+        const adminPhone = '919473928468';
+        const message = `Hi EVerified Team!\n\nI would like to schedule an interview with this candidate from my job post "${jobTitle}":\n\n👤 Name: ${candidateName}\n💼 Role: ${role}\n📍 Location: ${city}\n\nPlease share their contact details and help schedule an interview.`;
+        Linking.openURL(`whatsapp://send?phone=${adminPhone}&text=${encodeURIComponent(message)}`).catch(() => {
+            Alert.alert('WhatsApp not installed', 'Please install WhatsApp to connect.');
+        });
+    };
+
+    const renderApplicant = ({ item }: { item: Applicant }) => {
+        // Two-tier verification logic
         const isTestPassed = item.verification_status === 'verified' || item.verification_status === 'approved';
         const isFullyVerified = isTestPassed && item.is_admin_verified === true;
         const isPending = !isTestPassed;
@@ -163,24 +132,16 @@ export default function CandidateSearchScreen() {
                         </Text>
                     </View>
                     {/* Status Badge - Green for admin verified, Yellow for test passed */}
-                    {isFullyVerified && (
-                        <View style={styles.verifiedBadge}>
-                            <Award size={12} color="#fff" />
-                            <Text style={styles.verifiedText}>Verified</Text>
-                        </View>
-                    )}
-                    {isTestPassed && !isFullyVerified && (
-                        <View style={styles.testPassedBadge}>
-                            <Award size={12} color="#fff" />
-                            <Text style={styles.verifiedText}>Test Passed</Text>
-                        </View>
-                    )}
-                    {isPending && (
-                        <View style={styles.pendingBadge}>
-                            <Clock size={12} color="#fff" />
-                            <Text style={styles.verifiedText}>Pending</Text>
-                        </View>
-                    )}
+                    <View style={[
+                        styles.statusBadge,
+                        isFullyVerified ? styles.verifiedBadge :
+                            isTestPassed ? styles.testPassedBadge : styles.pendingBadge
+                    ]}>
+                        <Award size={12} color="#fff" />
+                        <Text style={styles.statusText}>
+                            {isFullyVerified ? 'Verified' : isTestPassed ? 'Test Passed' : 'Pending'}
+                        </Text>
+                    </View>
                 </View>
 
                 <View style={styles.infoRow}>
@@ -209,13 +170,13 @@ export default function CandidateSearchScreen() {
                 <View style={styles.actionRow}>
                     <TouchableOpacity
                         style={[styles.actionBtn, styles.connectBtn]}
-                        onPress={() => handleConnect(item.full_name, getRoleLabel(item.role), item.city)}
+                        onPress={() => handleConnectWithAdmin(item.full_name, getRoleLabel(item.role), item.city)}
                     >
                         <MessageCircle size={16} color="#fff" />
-                        <Text style={styles.actionBtnText}>Connect via EVerified</Text>
+                        <Text style={styles.actionBtnText}>Connect with Admin</Text>
                     </TouchableOpacity>
                 </View>
-            </View >
+            </View>
         );
     };
 
@@ -238,69 +199,23 @@ export default function CandidateSearchScreen() {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <ArrowLeft size={24} color={colors.foreground} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Find Candidates</Text>
+                <Text style={styles.headerTitle}>Applicants</Text>
                 <View style={styles.countBadge}>
-                    <Text style={styles.countText}>{filteredCandidates.length}</Text>
+                    <Text style={styles.countText}>{applicants.length}</Text>
                 </View>
             </View>
 
-            {/* Search */}
-            <View style={styles.searchContainer}>
-                <Search size={20} color={colors.muted} />
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search by name, city, pincode..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholderTextColor={colors.muted}
-                />
-                {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')}>
-                        <X size={20} color={colors.muted} />
-                    </TouchableOpacity>
-                )}
+            {/* Job Title */}
+            <View style={styles.jobTitleContainer}>
+                <Text style={styles.jobTitleLabel}>For:</Text>
+                <Text style={styles.jobTitleText}>{jobTitle}</Text>
             </View>
 
-            {/* Role Filter Chips */}
-            <View style={styles.filterRow}>
-                {[
-                    { label: 'All', value: null },
-                    { label: 'Technician', value: 'technician' },
-                    { label: 'Showroom', value: 'sales' },
-                    { label: 'Workshop', value: 'workshop' },
-                ].map((filter) => (
-                    <TouchableOpacity
-                        key={filter.label}
-                        style={[
-                            styles.filterChip,
-                            roleFilter === filter.value && styles.filterChipActive,
-                        ]}
-                        onPress={() => setRoleFilter(filter.value)}
-                    >
-                        <Text style={[
-                            styles.filterChipText,
-                            roleFilter === filter.value && styles.filterChipTextActive,
-                        ]}>{filter.label}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            {/* Verified Toggle */}
-            <TouchableOpacity
-                style={styles.verifiedToggle}
-                onPress={() => setVerifiedOnly(!verifiedOnly)}
-            >
-                <View style={[styles.checkbox, verifiedOnly && styles.checkboxActive]}>
-                    {verifiedOnly && <CheckCircle size={14} color="#fff" />}
-                </View>
-                <Text style={styles.verifiedToggleText}>Show only verified candidates</Text>
-            </TouchableOpacity>
-
-            {/* Candidates List */}
+            {/* Applicants List */}
             <FlatList
-                data={filteredCandidates}
+                data={applicants}
                 keyExtractor={(item) => item.id.toString()}
-                renderItem={renderCandidate}
+                renderItem={renderApplicant}
                 contentContainerStyle={styles.listContent}
                 refreshControl={
                     <RefreshControl
@@ -311,9 +226,9 @@ export default function CandidateSearchScreen() {
                 }
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <Search size={50} color={colors.muted} />
-                        <Text style={styles.emptyTitle}>No candidates found</Text>
-                        <Text style={styles.emptyText}>Try adjusting your filters</Text>
+                        <Briefcase size={50} color={colors.muted} />
+                        <Text style={styles.emptyTitle}>No Applicants Yet</Text>
+                        <Text style={styles.emptyText}>Once candidates apply, they will appear here.</Text>
                     </View>
                 }
             />
@@ -360,70 +275,22 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontSize: fontSize.sm,
     },
-    searchContainer: {
+    jobTitleContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.secondary,
-        borderRadius: borderRadius.lg,
-        paddingHorizontal: spacing.md,
-        margin: spacing.md,
-        gap: spacing.sm,
-    },
-    searchInput: {
-        flex: 1,
+        paddingHorizontal: spacing.lg,
         paddingVertical: spacing.sm,
-        fontSize: fontSize.base,
-        color: colors.foreground,
-    },
-    filterRow: {
-        flexDirection: 'row',
-        paddingHorizontal: spacing.md,
-        gap: spacing.xs,
-        marginBottom: spacing.sm,
-    },
-    filterChip: {
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: 16,
         backgroundColor: colors.secondary,
-        borderWidth: 1,
-        borderColor: colors.border,
+        gap: spacing.xs,
     },
-    filterChipActive: {
-        backgroundColor: colors.primary,
-        borderColor: colors.primary,
-    },
-    filterChipText: {
-        fontSize: 12,
-        color: colors.foreground,
-    },
-    filterChipTextActive: {
-        color: '#fff',
-        fontWeight: '600',
-    },
-    verifiedToggle: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: spacing.md,
-        marginBottom: spacing.sm,
-        gap: spacing.sm,
-    },
-    checkbox: {
-        width: 22,
-        height: 22,
-        borderRadius: 6,
-        borderWidth: 2,
-        borderColor: colors.border,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    checkboxActive: {
-        backgroundColor: colors.primary,
-        borderColor: colors.primary,
-    },
-    verifiedToggleText: {
+    jobTitleLabel: {
         fontSize: fontSize.sm,
-        color: colors.foreground,
+        color: colors.muted,
+    },
+    jobTitleText: {
+        fontSize: fontSize.base,
+        fontWeight: '600',
+        color: colors.primary,
     },
     listContent: {
         padding: spacing.md,
@@ -467,37 +334,27 @@ const styles = StyleSheet.create({
         fontSize: fontSize.sm,
         color: colors.muted,
     },
-    verifiedBadge: {
+    statusBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: '#4CAF50',
         paddingHorizontal: spacing.sm,
         paddingVertical: 4,
         borderRadius: borderRadius.md,
+    },
+    verifiedBadge: {
+        backgroundColor: '#4CAF50',
     },
     testPassedBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
         backgroundColor: '#FFC107',
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 4,
-        borderRadius: borderRadius.md,
     },
-    verifiedText: {
+    pendingBadge: {
+        backgroundColor: '#f59e0b',
+    },
+    statusText: {
         color: '#fff',
         fontSize: 10,
         fontWeight: '600',
-    },
-    pendingBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: '#f59e0b',
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 4,
-        borderRadius: borderRadius.md,
     },
     infoRow: {
         flexDirection: 'row',
@@ -522,12 +379,6 @@ const styles = StyleSheet.create({
         gap: spacing.xs,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.md,
-    },
-    callBtn: {
-        backgroundColor: colors.primary,
-    },
-    whatsappBtn: {
-        backgroundColor: '#25D366',
     },
     connectBtn: {
         backgroundColor: colors.primary,
