@@ -123,7 +123,8 @@ router.get('/:id/applicants', async (req, res) => {
         const result = await query<any>(
             `SELECT u.id, u.full_name, u.phone_number, u.city, u.state, u.experience, 
               u.qualification, u.verification_status, u.domain, u.vehicle_category,
-              u.training_role, u.brands, u.quiz_score, u.total_questions,
+              u.training_role, u.brands, u.quiz_score, u.total_questions, u.role,
+              u.pincode, u.current_salary, u.is_admin_verified,
               ja.status as application_status
        FROM job_applications ja
        JOIN users u ON ja.user_id = u.id

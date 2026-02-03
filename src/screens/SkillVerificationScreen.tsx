@@ -133,8 +133,7 @@ const SkillVerificationScreen: React.FC = () => {
             if (userData?.domain === 'BS6' && userData?.role === 'technician') {
                 if (passed) {
                     if (currentStep === 1) newStatus = 'step1_completed';
-                    else if (currentStep === 2) newStatus = 'step2_completed';
-                    else if (currentStep === 3) newStatus = 'verified';
+                    else if (currentStep === 2) newStatus = 'verified'; // Fixed: Step 2 is final for BS6 too
                 } else {
                     newStatus = 'failed';
                 }
@@ -219,7 +218,7 @@ const SkillVerificationScreen: React.FC = () => {
                     </Text>
 
                     {passed && userData?.role === 'technician' && (
-                        (userData?.domain === 'BS6' && currentStep < 3) ||
+                        (userData?.domain === 'BS6' && currentStep < 2) ||
                         (!userData?.domain && currentStep < 2)
                     ) ? (
                         <Button

@@ -74,7 +74,14 @@ export const AppNavigator = () => {
                 <Stack.Screen name="Success" component={SuccessScreen} />
 
                 {/* Replaced UserDashboard with Tab Navigator */}
-                <Stack.Screen name="UserDashboard" component={UserTabNavigator} />
+                <Stack.Screen
+                    name="UserDashboard"
+                    component={UserTabNavigator}
+                    options={{
+                        gestureEnabled: false,
+                        headerLeft: () => null,
+                    }}
+                />
 
                 <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
                 <Stack.Screen name="RecruiterDashboard" component={RecruiterDashboardScreen} />

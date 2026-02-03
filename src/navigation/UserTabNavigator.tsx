@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { LayoutGrid, Briefcase, FileText, BookOpen, Newspaper, User } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../lib/theme';
 
 import IDCardScreen from '../screens/IDCardScreen';
@@ -12,14 +13,17 @@ import NewsScreen from '../screens/NewsScreen';
 const Tab = createBottomTabNavigator();
 
 export default function UserTabNavigator() {
+    const insets = useSafeAreaInsets();
+
     return (
         <Tab.Navigator
+            backBehavior="firstRoute"
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    height: 65,
+                    height: 65 + insets.bottom,
                     paddingTop: 10,
-                    paddingBottom: 10,
+                    paddingBottom: 10 + insets.bottom,
                     backgroundColor: colors.background,
                     borderTopColor: colors.border,
                     elevation: 10,

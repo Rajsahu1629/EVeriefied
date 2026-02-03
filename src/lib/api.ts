@@ -127,6 +127,10 @@ export async function checkRecruiterPhoneExists(phoneNumber: string): Promise<bo
 export async function registerRecruiter(recruiterData: {
     companyName: string;
     entityType: string;
+    fullAddress: string;
+    city: string;
+    state: string;
+    pincode: string;
     phoneNumber: string;
     password: string;
 }) {

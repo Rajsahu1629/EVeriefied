@@ -203,7 +203,11 @@ const VerificationFormScreen: React.FC = () => {
             if (formData.qualification === 'other' && !formData.otherQualification) {
                 newErrors.otherQualification = t('required');
             }
-            if (!formData.agreedToTerms) newErrors.agreedToTerms = t('termsRequired');
+        }
+
+        // Terms & conditions required in Step 1 only for aspirants (checkbox is in Step 1 for them)
+        if (selectedRole === 'aspirant' && !formData.agreedToTerms) {
+            newErrors.agreedToTerms = t('termsRequired');
         }
 
         setErrors(newErrors);
@@ -244,6 +248,13 @@ const VerificationFormScreen: React.FC = () => {
     };
 
     const handleSubmit = async () => {
+        // Validate terms for technicians (not aspirants, not edit mode)
+        if (!isEditMode && selectedRole !== 'aspirant' && !formData.agreedToTerms) {
+            setErrors(prev => ({ ...prev, agreedToTerms: t('termsRequired') }));
+            Alert.alert(t('error'), t('termsRequired'));
+            return;
+        }
+
         setIsLoading(true);
         try {
             if (isEditMode && userData?.id) {

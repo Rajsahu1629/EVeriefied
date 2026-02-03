@@ -150,8 +150,8 @@ export default function CandidateSearchScreen() {
                         </Text>
                     </View>
                     <View style={styles.nameSection}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={styles.name}>{item.full_name || 'Unknown'}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                            <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">{item.full_name || 'Unknown'}</Text>
                             {isFullyVerified && <CheckCircle size={16} color="#4CAF50" />}
                             {isTestPassed && !isFullyVerified && <CheckCircle size={16} color="#FFC107" />}
                             {isPending && <Clock size={16} color="#f59e0b" />}
@@ -462,6 +462,7 @@ const styles = StyleSheet.create({
         fontSize: fontSize.base,
         fontWeight: '600',
         color: colors.foreground,
+        flexShrink: 1,
     },
     role: {
         fontSize: fontSize.sm,

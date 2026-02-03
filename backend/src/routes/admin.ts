@@ -99,7 +99,8 @@ router.get('/candidates/search', async (req, res) => {
         let queryText = `
       SELECT id, full_name, phone_number, city, state, experience, 
              qualification, verification_status, domain, vehicle_category,
-             training_role, brands, quiz_score, total_questions, role
+             training_role, brands, quiz_score, total_questions, role,
+             pincode, current_salary, is_admin_verified
       FROM users 
       WHERE verification_status = 'verified'
     `;

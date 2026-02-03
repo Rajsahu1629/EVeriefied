@@ -23,7 +23,7 @@ router.post('/check-phone', async (req, res) => {
 // Register new recruiter
 router.post('/', async (req, res) => {
     try {
-        const { companyName, entityType, phoneNumber, password } = req.body;
+        const { companyName, entityType, fullAddress, city, state, pincode, phoneNumber, password } = req.body;
 
         // Check if recruiter already exists
         const existing = await query<any>(
@@ -37,10 +37,10 @@ router.post('/', async (req, res) => {
 
         // Insert new recruiter
         const result = await query<any>(
-            `INSERT INTO recruiters (company_name, entity_type, phone_number, password)
-       VALUES ($1, $2, $3, $4)
+            `INSERT INTO recruiters (company_name, entity_type, full_address, city, state, pincode, phone_number, password)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-            [companyName, entityType, phoneNumber, password]
+            [companyName, entityType, fullAddress, city, state, pincode, phoneNumber, password]
         );
 
         const recruiter = result[0];

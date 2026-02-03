@@ -268,6 +268,9 @@ export const translations: Translations = {
     enterPincode: { hi: 'पिनकोड दर्ज करें', en: 'Enter Pincode' },
     invalidPincode: { hi: 'कृपया 6 अंकों का पिनकोड दर्ज करें', en: 'Please enter a valid 6-digit pincode' },
     enterCity: { hi: 'शहर का नाम दर्ज करें', en: 'Enter city name' },
+    fullAddress: { hi: 'पूरा पता', en: 'Full Address' },
+    enterFullAddress: { hi: 'पूरा पता दर्ज करें (बिल्डिंग, स्ट्रीट, लैंडमार्क)', en: 'Enter full address (Building, Street, Landmark)' },
+    enterState: { hi: 'राज्य दर्ज करें', en: 'Enter state' },
 
     // Errors
     pass10th: { hi: '10वीं पास', en: '10th Pass' },
