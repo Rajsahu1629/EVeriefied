@@ -88,9 +88,12 @@ router.get('/recruiter/:recruiterId', async (req, res) => {
         const { recruiterId } = req.params;
 
         const result = await query<any>(
-            `SELECT * FROM job_posts 
-       WHERE recruiter_id = $1 
-       ORDER BY created_at DESC`,
+            `SELECT jp.*, COUNT(ja.user_id) as application_count 
+       FROM job_posts jp
+       LEFT JOIN job_applications ja ON jp.id = ja.job_post_id
+       WHERE jp.recruiter_id = $1 
+       GROUP BY jp.id
+       ORDER BY jp.created_at DESC`,
             [recruiterId]
         );
 
