@@ -102,7 +102,7 @@ router.get('/candidates/search', async (req, res) => {
              training_role, brands, quiz_score, total_questions, role,
              pincode, current_salary, is_admin_verified
       FROM users 
-      WHERE verification_status = 'verified'
+      WHERE 1=1
     `;
         const params: any[] = [];
         let paramIndex = 1;

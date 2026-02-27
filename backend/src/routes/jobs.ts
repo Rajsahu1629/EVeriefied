@@ -125,10 +125,12 @@ router.get('/:id/applicants', async (req, res) => {
               u.qualification, u.verification_status, u.domain, u.vehicle_category,
               u.training_role, u.brands, u.quiz_score, u.total_questions, u.role,
               u.pincode, u.current_salary, u.is_admin_verified,
-              ja.status as application_status
+              ja.status as application_status,
+              ja.created_at as applied_at
        FROM job_applications ja
        JOIN users u ON ja.user_id = u.id
-       WHERE ja.job_post_id = $1`,
+       WHERE ja.job_post_id = $1
+       ORDER BY ja.created_at DESC`,
             [id]
         );
 
