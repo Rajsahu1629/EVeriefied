@@ -23,7 +23,7 @@
       "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
       "package": "com.rajsahu1629.EVerifiedNative",
-      "versionCode": 3,
+      "versionCode": 4,
       "jsEngine": "hermes",
       "permissions": [
         "INTERNET"
