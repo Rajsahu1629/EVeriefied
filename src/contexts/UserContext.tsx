@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUser } from '../lib/api';
 
 export type UserRole = 'technician' | 'sales' | 'workshop' | 'aspirant';
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'step1_completed' | 'step2_pending' | 'verified' | 'failed' | 'step2_completed' | 'step3_pending';
@@ -158,7 +159,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!userData?.id) return;
         try {
             // Fetch fresh user data from API
-            const { getUser } = await import('../lib/api');
+            // const { getUser } = await import('../lib/api'); // REMOVED
             const user = await getUser(userData.id);
 
             if (user) {

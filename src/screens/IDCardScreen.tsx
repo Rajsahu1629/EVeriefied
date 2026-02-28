@@ -31,7 +31,6 @@ import { LanguageSelector } from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
 import { captureRef } from 'react-native-view-shot';
 import { useRef } from 'react';
 import { getCardOrderStatus, updateCardOrderStatus } from '../lib/api';
@@ -344,21 +343,27 @@ export default function IDCardScreen() {
 
     const handleDownload = async () => {
         try {
-            const { status } = await MediaLibrary.requestPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert('Permission needed', 'Please grant library access to save your ID card.');
-                return;
-            }
-
             const uri = await captureRef(cardRef, {
                 format: 'png',
                 quality: 1.0,
             });
 
-            // Using createAssetAsync which is more robust in many Expo environments
-            await MediaLibrary.createAssetAsync(uri);
+            const isSharingAvailable = await Sharing.isAvailableAsync();
+            if (!isSharingAvailable) {
+                Alert.alert('Error', 'Sharing not available on this device');
+                return;
+            }
 
-            Alert.alert('Success', 'ID Card saved to your gallery!');
+            // Using Sharing.shareAsync instead of MediaLibrary.
+            // This allows the user to click "Save Image" or "Save to Files" from the system sheet.
+            // This method does NOT require broad media permissions from the app itself.
+            await Sharing.shareAsync(uri, {
+                mimeType: 'image/png',
+                dialogTitle: 'Download your ID card',
+                UTI: 'public.png', // for iOS
+            });
+
+            setShowShareModal(false);
         } catch (error) {
             console.error('Download error:', error);
             Alert.alert('Error', 'Could not save. Please take a screenshot manually.');

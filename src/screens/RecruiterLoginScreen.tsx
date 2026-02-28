@@ -104,9 +104,18 @@ const RecruiterLoginScreen: React.FC = () => {
                 routes: [{ name: 'RecruiterDashboard' }],
             });
         } catch (error: any) {
-            // Show the actual error message from API
-            const errorMessage = error?.message || t('networkError');
-            Alert.alert(t('error'), errorMessage);
+            const rawMessage = error?.message || '';
+            let userMessage = t('networkError');
+
+            if (rawMessage.toLowerCase().includes('not found') || rawMessage.toLowerCase().includes('not register')) {
+                userMessage = t('userNotRegistered');
+            } else if (rawMessage.toLowerCase().includes('password') || rawMessage.toLowerCase().includes('credential')) {
+                userMessage = t('invalidCredentials');
+            } else if (rawMessage) {
+                userMessage = rawMessage;
+            }
+
+            Alert.alert(t('error'), userMessage);
         } finally {
             setIsLoading(false);
         }

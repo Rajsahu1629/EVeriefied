@@ -283,6 +283,8 @@ export const translations: Translations = {
 
     userAlreadyExists: { hi: 'यह फ़ोन नंबर पहले से पंजीकृत है। कृपया लॉगिन करें।', en: 'This phone number is already registered. Please login.' },
     phoneAlreadyRegistered: { hi: 'फ़ोन नंबर पहले से पंजीकृत है', en: 'Phone number already registered' },
+    userNotRegistered: { hi: 'उपयोगकर्ता नहीं मिला। कृपया पंजीकरण करें।', en: 'User not found. Please register.' },
+    invalidCredentials: { hi: 'अमान्य फ़ोन नंबर या पासवर्ड।', en: 'Invalid phone number or password.' },
 };
 
 import AsyncStorage from '@react-native-async-storage/async-storage';

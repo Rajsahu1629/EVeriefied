@@ -334,9 +334,18 @@ const VerificationFormScreen: React.FC = () => {
                 index: 0,
                 routes: [{ name: 'Success' }],
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Registration error:', error);
-            Alert.alert(t('error'), t('registrationFailed'));
+            const rawMessage = error?.message || '';
+            let userMessage = t('registrationFailed');
+
+            if (rawMessage.toLowerCase().includes('network')) {
+                userMessage = t('networkError');
+            } else if (rawMessage) {
+                userMessage = rawMessage;
+            }
+
+            Alert.alert(t('error'), userMessage);
         } finally {
             setIsLoading(false);
         }
@@ -484,7 +493,13 @@ const VerificationFormScreen: React.FC = () => {
                                     onCheckedChange={(v) => updateField('agreedToTerms', v)}
                                 />
                                 <Text style={{ marginLeft: spacing.sm, flex: 1, color: colors.foreground }}>
-                                    {t('termsAndConditions')}
+                                    {t('termsAndConditions').split(' ')[0]}
+                                    <Text
+                                        style={{ color: colors.primary, fontWeight: 'bold' }}
+                                        onPress={() => setShowTerms(true)}
+                                    >
+                                        {" " + t('termsAndConditions').substring(t('termsAndConditions').indexOf(' ') + 1)}
+                                    </Text>
                                 </Text>
                             </TouchableOpacity>
                             {errors.agreedToTerms && <Text style={{ color: colors.error, fontSize: fontSize.sm }}>{errors.agreedToTerms}</Text>}
@@ -566,6 +581,16 @@ const VerificationFormScreen: React.FC = () => {
                     placeholder={t('currentWorkshop')}
                     value={formData.currentWorkshop}
                     onChangeText={(v) => updateField('currentWorkshop', v)}
+                    leftIcon={<Briefcase size={20} color={colors.muted} />}
+                />
+            )}
+
+            {(selectedRole === 'workshop' || selectedRole === 'sales') && (
+                <Input
+                    label={t('brandWorkshop') || "Brand Workshop"}
+                    placeholder="e.g. Tata Motors, Hero"
+                    value={formData.brandWorkshop}
+                    onChangeText={(v) => updateField('brandWorkshop', v)}
                     leftIcon={<Briefcase size={20} color={colors.muted} />}
                 />
             )}
@@ -720,11 +745,28 @@ const VerificationFormScreen: React.FC = () => {
                     </Text>
                     <ScrollView>
                         <Text style={{ color: colors.foreground, lineHeight: 22 }}>
-                            1. **Data Collection**: We collect your Name, Phone Number, Location, and Professional Qualifications to create your EV Technician Profile.{"\n\n"}
-                            2. **Purpose**: Your data is used to verify your skills and connect you with job opportunities in the EV sector.{"\n\n"}
-                            3. **Sharing**: Verified profiles may be shared with registered Recruiters (OEMs, Dealers, Fleets).{"\n\n"}
-                            4. **User Rights**: You can request to edit or delete your data at any time by contacting support.{"\n\n"}
-                            5. **Consent**: By registering, you agree to receive communications (SMS/WhatsApp) regarding your application and jobs.
+                            1. INTRODUCTION{"\n"}
+                            Welcome to EVerified. We value your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and share your information when you use our mobile application.{"\n\n"}
+                            2. INFORMATION WE COLLECT{"\n"}
+                            To provide our verification and job connection services, we collect the following types of information:{"\n"}
+                            • Personal Information: Name, Phone Number, Email Address.{"\n"}
+                            • Professional Information: Qualifications, Experience, Current Salary, Brands Worked With.{"\n"}
+                            • Business Information: Company Name, Entity Type, Address, GST/Business Proof.{"\n"}
+                            • Location Data: State, City, and Pincode to match you with local job opportunities.{"\n\n"}
+                            3. HOW WE USE YOUR INFORMATION{"\n"}
+                            We use your data for the following purposes:{"\n"}
+                            • Verification: To verify your identity and professional skills.{"\n"}
+                            • Job Matching: To connect Candidates with Recruiters.{"\n"}
+                            • Communication: To send you important updates via SMS or WhatsApp.{"\n\n"}
+                            4. DATA SHARING{"\n"}
+                            • Recruiters: Verified candidate profiles are visible to registered Recruiters.{"\n"}
+                            • Legal Requirements: We may disclose your information if required by law.{"\n\n"}
+                            5. DATA SECURITY{"\n"}
+                            We implement appropriate security measures to protect your personal information.{"\n\n"}
+                            6. YOUR RIGHTS{"\n"}
+                            You have the right to access, update, or request the deletion of your personal data. You can update your profile directly within the app or contact our support team.{"\n\n"}
+                            7. CONTACT US{"\n"}
+                            If you have any questions, please contact us at: rajsahu1629@gmail.com
                         </Text>
                     </ScrollView>
                     <TouchableOpacity

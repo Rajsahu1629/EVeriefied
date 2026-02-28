@@ -2,7 +2,7 @@
   "expo": {
     "name": "EVerified",
     "slug": "EVerified-Native",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -23,7 +23,11 @@
       "edgeToEdgeEnabled": false,
       "predictiveBackGestureEnabled": false,
       "package": "com.rajsahu1629.EVerifiedNative",
-      "jsEngine": "hermes"
+      "versionCode": 2,
+      "jsEngine": "hermes",
+      "permissions": [
+        "INTERNET"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
