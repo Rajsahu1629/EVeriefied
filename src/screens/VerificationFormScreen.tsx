@@ -222,6 +222,9 @@ const VerificationFormScreen: React.FC = () => {
             newErrors.otherQualification = t('required');
         }
         if (!formData.experience) newErrors.experience = t('required');
+        if (selectedRole !== 'aspirant' && (!formData.currentSalary || !formData.currentSalary.trim())) {
+            newErrors.currentSalary = t('required');
+        }
 
         // Brands only required for experienced professionals
         if (selectedRole !== 'aspirant' && formData.brands.length === 0) {
@@ -602,6 +605,7 @@ const VerificationFormScreen: React.FC = () => {
                     value={formData.currentSalary}
                     onChangeText={(v) => updateField('currentSalary', v)}
                     keyboardType="numeric"
+                    error={errors.currentSalary}
                     leftIcon={<Text style={{ fontSize: 18, color: colors.muted }}>₹</Text>}
                 />
             )}

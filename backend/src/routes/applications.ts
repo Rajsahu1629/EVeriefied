@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db';
+import { sendPushNotification } from '../services/notificationService';
 
 const router = Router();
 
@@ -14,6 +15,26 @@ router.post('/', async (req, res) => {
        ON CONFLICT (user_id, job_post_id) DO NOTHING`,
             [userId, jobPostId]
         );
+
+        // 🔔 Notify the recruiter when someone applies to their job
+        try {
+            const jobInfo = await query<any>(
+                `SELECT jp.role_required, jp.brand, r.push_token 
+                 FROM job_posts jp 
+                 JOIN recruiters r ON jp.recruiter_id = r.id 
+                 WHERE jp.id = $1`, [jobPostId]
+            );
+            if (jobInfo.length > 0 && jobInfo[0].push_token) {
+                await sendPushNotification(
+                    jobInfo[0].push_token,
+                    'New Applicant! 🎉',
+                    `Someone applied for your ${jobInfo[0].brand} - ${jobInfo[0].role_required} position`,
+                    { screen: 'JobApplicants', jobId: jobPostId }
+                );
+            }
+        } catch (notifError) {
+            console.error('Notification error (non-blocking):', notifError);
+        }
 
         res.json({ success: true, message: 'Applied successfully' });
     } catch (error) {

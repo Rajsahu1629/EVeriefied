@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUser } from '../lib/api';
+import { useNotifications, cleanupPushToken } from '../hooks/useNotifications';
 
 export type UserRole = 'technician' | 'sales' | 'workshop' | 'aspirant';
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'step1_completed' | 'step2_pending' | 'verified' | 'failed' | 'step2_completed' | 'step3_pending';
@@ -82,6 +83,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [recruiterData, setRecruiterData] = useState<RecruiterData | null>(null);
     const [isRecruiterLoggedIn, setIsRecruiterLoggedIn] = useState(false);
 
+    // 🔔 Register push notifications for logged-in users/recruiters
+    const userId = isLoggedIn ? userData?.id : (isRecruiterLoggedIn ? recruiterData?.id : null);
+    const userType = isLoggedIn ? 'user' as const : (isRecruiterLoggedIn ? 'recruiter' as const : null);
+    useNotifications(userId || null, userType);
+
     // Load data from AsyncStorage on mount
     useEffect(() => {
         const loadStoredData = async () => {
@@ -140,6 +146,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [recruiterData, isRecruiterLoggedIn]);
 
     const logout = async () => {
+        // 🔔 Remove push token before logging out
+        if (userData?.id) {
+            cleanupPushToken(userData.id, 'user').catch(() => { });
+        }
         setUserData(null);
         setIsLoggedIn(false);
         setSelectedRole(null);
@@ -148,6 +158,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const logoutRecruiter = async () => {
+        // 🔔 Remove push token before logging out
+        if (recruiterData?.id) {
+            cleanupPushToken(recruiterData.id, 'recruiter').catch(() => { });
+        }
         setRecruiterData(null);
         setIsRecruiterLoggedIn(false);
         setSelectedRole(null);

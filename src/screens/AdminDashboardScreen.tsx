@@ -8,18 +8,21 @@ import {
     ScrollView,
     Animated,
     Dimensions,
-    TouchableWithoutFeedback
+    TouchableWithoutFeedback,
+    Alert,
+    Modal,
+    TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
     CheckCircle, Users, Search, LogOut, ChevronRight,
-    Briefcase, Clock, Award, Shield, Menu, X, Home
+    Briefcase, Clock, Award, Shield, Menu, X, Home, Bell
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { getAdminStats } from '../lib/api';
+import { getAdminStats, broadcastNotification } from '../lib/api';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
@@ -38,6 +41,13 @@ export default function AdminDashboardScreen() {
 
     // Background opacity animation
     const fadeAnim = useRef(new Animated.Value(0)).current;
+
+    // Notification modal state
+    const [notifModalVisible, setNotifModalVisible] = useState(false);
+    const [notifTarget, setNotifTarget] = useState<'users' | 'recruiters' | 'all'>('all');
+    const [notifTitle, setNotifTitle] = useState('');
+    const [notifBody, setNotifBody] = useState('');
+    const [sending, setSending] = useState(false);
 
     const toggleMenu = () => {
         if (isMenuOpen) {
@@ -110,6 +120,28 @@ export default function AdminDashboardScreen() {
                 navigation.navigate(screen);
             }
         }, 200);
+    };
+
+    const handleSendNotification = async () => {
+        if (!notifTitle.trim() || !notifBody.trim()) {
+            Alert.alert('Missing Fields', 'Please enter both title and message');
+            return;
+        }
+        setSending(true);
+        try {
+            const result = await broadcastNotification(notifTarget, notifTitle, notifBody);
+            Alert.alert(
+                '✅ Sent!',
+                `${result.message}\n${result.sent} of ${result.total} delivered`
+            );
+            setNotifModalVisible(false);
+            setNotifTitle('');
+            setNotifBody('');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to send notification');
+        } finally {
+            setSending(false);
+        }
     };
 
     return (
@@ -207,6 +239,17 @@ export default function AdminDashboardScreen() {
                         <Text style={styles.gridTitle}>Recruiter</Text>
                         <Text style={styles.gridDesc}>View Mode</Text>
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.gridCard}
+                        onPress={() => setNotifModalVisible(true)}
+                    >
+                        <View style={[styles.gridIcon, { backgroundColor: '#fce7f3' }]}>
+                            <Bell size={28} color="#db2777" />
+                        </View>
+                        <Text style={styles.gridTitle}>Notifications</Text>
+                        <Text style={styles.gridDesc}>Send to All</Text>
+                    </TouchableOpacity>
                 </View>
             </ScrollView>
 
@@ -273,6 +316,81 @@ export default function AdminDashboardScreen() {
                     </TouchableOpacity>
                 </SafeAreaView>
             </Animated.View>
+
+            {/* Send Notification Modal */}
+            <Modal
+                visible={notifModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setNotifModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>📢 Send Notification</Text>
+                            <TouchableOpacity onPress={() => setNotifModalVisible(false)}>
+                                <X size={24} color={colors.muted} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Target Selector */}
+                        <Text style={styles.inputLabel}>Send To</Text>
+                        <View style={styles.targetRow}>
+                            {(['all', 'users', 'recruiters'] as const).map(t => (
+                                <TouchableOpacity
+                                    key={t}
+                                    style={[
+                                        styles.targetBtn,
+                                        notifTarget === t && styles.targetBtnActive
+                                    ]}
+                                    onPress={() => setNotifTarget(t)}
+                                >
+                                    <Text style={[
+                                        styles.targetBtnText,
+                                        notifTarget === t && styles.targetBtnTextActive
+                                    ]}>
+                                        {t === 'all' ? '👥 Everyone' : t === 'users' ? '👤 Users' : '🏢 Recruiters'}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        {/* Title Input */}
+                        <Text style={styles.inputLabel}>Title</Text>
+                        <TextInput
+                            style={styles.textInput}
+                            placeholder="e.g. New Feature Alert! 🚀"
+                            value={notifTitle}
+                            onChangeText={setNotifTitle}
+                            placeholderTextColor="#9ca3af"
+                        />
+
+                        {/* Body Input */}
+                        <Text style={styles.inputLabel}>Message</Text>
+                        <TextInput
+                            style={[styles.textInput, styles.textArea]}
+                            placeholder="Write your notification message..."
+                            value={notifBody}
+                            onChangeText={setNotifBody}
+                            multiline
+                            numberOfLines={3}
+                            placeholderTextColor="#9ca3af"
+                        />
+
+                        {/* Send Button */}
+                        <TouchableOpacity
+                            style={[styles.sendBtn, sending && { opacity: 0.6 }]}
+                            onPress={handleSendNotification}
+                            disabled={sending}
+                        >
+                            <Bell size={20} color="#fff" />
+                            <Text style={styles.sendBtnText}>
+                                {sending ? 'Sending...' : 'Send Notification'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
         </SafeAreaView>
     );
@@ -486,5 +604,90 @@ const styles = StyleSheet.create({
         borderTopColor: colors.border,
         gap: spacing.md,
         backgroundColor: '#fef2f2',
+    },
+    // Notification Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: spacing.xl,
+        paddingBottom: 40,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.lg,
+    },
+    modalTitle: {
+        fontSize: fontSize.xl,
+        fontWeight: 'bold',
+        color: colors.foreground,
+    },
+    inputLabel: {
+        fontSize: fontSize.sm,
+        fontWeight: '600',
+        color: colors.muted,
+        marginBottom: spacing.xs,
+        marginTop: spacing.md,
+    },
+    targetRow: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+    },
+    targetBtn: {
+        flex: 1,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1.5,
+        borderColor: colors.border,
+        alignItems: 'center',
+    },
+    targetBtnActive: {
+        borderColor: '#7c3aed',
+        backgroundColor: '#f3e8ff',
+    },
+    targetBtnText: {
+        fontSize: fontSize.xs,
+        fontWeight: '500',
+        color: colors.muted,
+    },
+    targetBtnTextActive: {
+        color: '#7c3aed',
+        fontWeight: '700',
+    },
+    textInput: {
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.lg,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        fontSize: fontSize.base,
+        color: colors.foreground,
+        backgroundColor: '#f9fafb',
+    },
+    textArea: {
+        height: 80,
+        textAlignVertical: 'top',
+    },
+    sendBtn: {
+        backgroundColor: '#7c3aed',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.xl,
+        marginTop: spacing.lg,
+    },
+    sendBtnText: {
+        color: '#fff',
+        fontSize: fontSize.base,
+        fontWeight: 'bold',
     },
 });

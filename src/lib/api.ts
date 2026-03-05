@@ -322,3 +322,40 @@ export async function verifyUserByAdmin(userId: string) {
         method: 'PUT',
     });
 }
+
+// ============ PUSH NOTIFICATIONS ============
+
+export async function registerPushToken(
+    userId: string | number,
+    pushToken: string,
+    userType: 'user' | 'recruiter'
+) {
+    return request<{ success: boolean }>('/notifications/register-token', {
+        method: 'POST',
+        body: JSON.stringify({ userId, pushToken, userType }),
+    });
+}
+
+export async function removePushToken(
+    userId: string | number,
+    userType: 'user' | 'recruiter'
+) {
+    return request<{ success: boolean }>('/notifications/remove-token', {
+        method: 'POST',
+        body: JSON.stringify({ userId, userType }),
+    });
+}
+
+export async function broadcastNotification(
+    target: 'users' | 'recruiters' | 'all',
+    title: string,
+    body: string
+) {
+    return request<{ success: boolean; message: string; sent: number; total: number }>(
+        '/notifications/broadcast',
+        {
+            method: 'POST',
+            body: JSON.stringify({ target, title, body }),
+        }
+    );
+}

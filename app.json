@@ -25,6 +25,7 @@
       "package": "com.rajsahu1629.EVerifiedNative",
       "versionCode": 4,
       "jsEngine": "hermes",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "INTERNET"
       ]
@@ -51,6 +52,13 @@
               "android.permission.WRITE_EXTERNAL_STORAGE"
             ]
           }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#10b981"
         }
       ]
     ]

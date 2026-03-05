@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db';
+import { sendPushNotification, sendBulkNotifications } from '../services/notificationService';
 
 const router = Router();
 
@@ -28,6 +29,31 @@ router.put('/jobs/:id/approve', async (req, res) => {
 
         await query(`UPDATE job_posts SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
 
+        // 🔔 Notify the recruiter their job is live
+        try {
+            const job = await query<any>(
+                `SELECT jp.brand, jp.role_required, jp.city, r.push_token FROM job_posts jp JOIN recruiters r ON jp.recruiter_id = r.id WHERE jp.id = $1`, [id]
+            );
+            if (job.length > 0) {
+                const { brand, role_required, city, push_token } = job[0];
+
+                if (push_token) {
+                    await sendPushNotification(push_token, 'Job Approved! ✅', `Your ${brand} - ${role_required} post is now live!`, { screen: 'PreviousJobs' });
+                }
+
+                // 🔔 Broadcast to ALL users: new job available
+                const allUserTokens = await query<any>(`SELECT push_token FROM users WHERE push_token IS NOT NULL`);
+                if (allUserTokens.length > 0) {
+                    await sendBulkNotifications(
+                        allUserTokens.map((u: any) => u.push_token),
+                        '🆕 New Job Available!',
+                        `${brand} is hiring a ${role_required} in ${city || 'your area'}. Apply now!`,
+                        { screen: 'Jobs' }
+                    );
+                }
+            }
+        } catch (e) { console.error('Approval notification error:', e); }
+
         res.json({ success: true, message: 'Job approved' });
     } catch (error) {
         console.error('Approve job error:', error);
@@ -41,6 +67,16 @@ router.put('/jobs/:id/reject', async (req, res) => {
         const { id } = req.params;
 
         await query(`UPDATE job_posts SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+
+        // 🔔 Notify the recruiter
+        try {
+            const job = await query<any>(
+                `SELECT jp.brand, jp.role_required, r.push_token FROM job_posts jp JOIN recruiters r ON jp.recruiter_id = r.id WHERE jp.id = $1`, [id]
+            );
+            if (job.length > 0 && job[0].push_token) {
+                await sendPushNotification(job[0].push_token, 'Job Post Update', `Your ${job[0].brand} - ${job[0].role_required} post was not approved. Please review.`, { screen: 'PreviousJobs' });
+            }
+        } catch (e) { console.error('Rejection notification error:', e); }
 
         res.json({ success: true, message: 'Job rejected' });
     } catch (error) {
@@ -83,6 +119,18 @@ router.put('/users/:id/verify', async (req, res) => {
        WHERE id = $3`,
             [status, status === 'verified', id]
         );
+
+        // 🔔 Notify the user
+        try {
+            const user = await query<any>(`SELECT push_token, full_name FROM users WHERE id = $1`, [id]);
+            if (user.length > 0 && user[0].push_token) {
+                const title = status === 'verified' ? 'Congratulations! 🎉' : 'Verification Update';
+                const body = status === 'verified'
+                    ? `${user[0].full_name}, you are now verified! ✅`
+                    : 'Your verification needs attention. Please check the app.';
+                await sendPushNotification(user[0].push_token, title, body, { screen: 'UserDashboard' });
+            }
+        } catch (e) { console.error('Verification notification error:', e); }
 
         res.json({ success: true, message: `User ${status}` });
     } catch (error) {

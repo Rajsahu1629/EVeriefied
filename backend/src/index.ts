@@ -15,6 +15,7 @@ import adminRoutes from './routes/admin';
 import quizRoutes from './routes/quiz';
 import statsRoutes from './routes/stats';
 import verificationRoutes from './routes/verification';
+import notificationRoutes from './routes/notifications';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,6 +40,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/verification', verificationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

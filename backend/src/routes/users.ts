@@ -40,6 +40,14 @@ router.post('/', async (req, res) => {
             return res.status(409).json({ error: 'User already exists with this phone number' });
         }
 
+        // Validate required fields
+        if (!fullName || !phoneNumber || !password || !role) {
+            return res.status(400).json({ error: 'Name, phone, password and role are required' });
+        }
+        if (!currentSalary || String(currentSalary).trim() === '') {
+            return res.status(400).json({ error: 'Current salary is required' });
+        }
+
         // Insert new user
         const result = await query<any>(
             `INSERT INTO users (

@@ -1,0 +1,29 @@
+{
+    "project_info": {
+        "project_number": "351332811337",
+        "project_id": "everified-1ef09",
+        "storage_bucket": "everified-1ef09.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:351332811337:android:a793cfa6b2b96033eef598",
+                "android_client_info": {
+                    "package_name": "com.rajsahu1629.EVerifiedNative"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyAO8IzreJh6wo-KISn1HyknXi34jnFyODs"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}
