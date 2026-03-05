@@ -1,4 +1,4 @@
-import { neon } from '@neondatabase/serverless';
+import { Pool } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -9,28 +9,28 @@ if (!DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set');
 }
 
-const sql = neon(DATABASE_URL);
+const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
 
 /**
  * Execute a query with optional parameters
- * Neon serverless uses tagged template literals, so we need to handle parameters differently
  */
 export async function query<T>(queryText: string, params?: any[]): Promise<T[]> {
+    const client = await pool.connect();
     try {
-        if (params && params.length > 0) {
-            // Replace $1, $2, etc with actual values for the tagged template
-            const result = await sql.transaction([
-                sql(queryText, params)
-            ]);
-            return result[0] as T[];
-        } else {
-            const result = await sql(queryText);
-            return result as T[];
-        }
+        const result = await client.query(queryText, params);
+        return result.rows as T[];
     } catch (error) {
         console.error('Database query error:', error);
         throw error;
+    } finally {
+        client.release();
     }
 }
 
-export { sql };
+export { pool as sql };
+
