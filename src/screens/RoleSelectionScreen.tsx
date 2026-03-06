@@ -143,9 +143,19 @@ const RoleSelectionScreen: React.FC = () => {
                             </TouchableOpacity>
                         ))}
 
-
-
-                        {/* Coming Soon - EV Infrastructure */}
+                        {/* Coming Soon - Emergency Manpower */}
+                        <View style={styles.roleItemDisabled}>
+                            <View style={[styles.roleIconWrapperDisabled, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
+                                <Users size={24} color="#ef4444" />
+                            </View>
+                            <View style={styles.roleTextContainer}>
+                                <Text style={[styles.roleTitleDisabled, { color: colors.foreground }]}>Emergency manpower</Text>
+                                <Text style={styles.roleDesc} numberOfLines={2}>Need Extra Hands Today? Get Verified Technicians Instantly.</Text>
+                            </View>
+                            <View style={styles.comingSoonBadge}>
+                                <Text style={styles.comingSoonText}>{t('comingSoon')}</Text>
+                            </View>
+                        </View>
                         <View style={styles.roleItemDisabled}>
                             <View style={styles.roleIconWrapperDisabled}>
                                 <Plug size={24} color={colors.muted} />
