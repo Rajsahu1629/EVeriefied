@@ -11,7 +11,9 @@ import {
     TouchableWithoutFeedback,
     Alert,
     Modal,
-    TextInput
+    TextInput,
+    KeyboardAvoidingView,
+    Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -324,72 +326,77 @@ export default function AdminDashboardScreen() {
                 animationType="slide"
                 onRequestClose={() => setNotifModalVisible(false)}
             >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>📢 Send Notification</Text>
-                            <TouchableOpacity onPress={() => setNotifModalVisible(false)}>
-                                <X size={24} color={colors.muted} />
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>📢 Send Notification</Text>
+                                <TouchableOpacity onPress={() => setNotifModalVisible(false)}>
+                                    <X size={24} color={colors.muted} />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Target Selector */}
+                            <Text style={styles.inputLabel}>Send To</Text>
+                            <View style={styles.targetRow}>
+                                {(['all', 'users', 'recruiters'] as const).map(t => (
+                                    <TouchableOpacity
+                                        key={t}
+                                        style={[
+                                            styles.targetBtn,
+                                            notifTarget === t && styles.targetBtnActive
+                                        ]}
+                                        onPress={() => setNotifTarget(t)}
+                                    >
+                                        <Text style={[
+                                            styles.targetBtnText,
+                                            notifTarget === t && styles.targetBtnTextActive
+                                        ]}>
+                                            {t === 'all' ? '👥 Everyone' : t === 'users' ? '👤 Users' : '🏢 Recruiters'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Title Input */}
+                            <Text style={styles.inputLabel}>Title</Text>
+                            <TextInput
+                                style={styles.textInput}
+                                placeholder="e.g. New Feature Alert! 🚀"
+                                value={notifTitle}
+                                onChangeText={setNotifTitle}
+                                placeholderTextColor="#9ca3af"
+                            />
+
+                            {/* Body Input */}
+                            <Text style={styles.inputLabel}>Message</Text>
+                            <TextInput
+                                style={[styles.textInput, styles.textArea]}
+                                placeholder="Write your notification message..."
+                                value={notifBody}
+                                onChangeText={setNotifBody}
+                                multiline
+                                numberOfLines={3}
+                                placeholderTextColor="#9ca3af"
+                            />
+
+                            {/* Send Button */}
+                            <TouchableOpacity
+                                style={[styles.sendBtn, sending && { opacity: 0.6 }]}
+                                onPress={handleSendNotification}
+                                disabled={sending}
+                            >
+                                <Bell size={20} color="#fff" />
+                                <Text style={styles.sendBtnText}>
+                                    {sending ? 'Sending...' : 'Send Notification'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
-
-                        {/* Target Selector */}
-                        <Text style={styles.inputLabel}>Send To</Text>
-                        <View style={styles.targetRow}>
-                            {(['all', 'users', 'recruiters'] as const).map(t => (
-                                <TouchableOpacity
-                                    key={t}
-                                    style={[
-                                        styles.targetBtn,
-                                        notifTarget === t && styles.targetBtnActive
-                                    ]}
-                                    onPress={() => setNotifTarget(t)}
-                                >
-                                    <Text style={[
-                                        styles.targetBtnText,
-                                        notifTarget === t && styles.targetBtnTextActive
-                                    ]}>
-                                        {t === 'all' ? '👥 Everyone' : t === 'users' ? '👤 Users' : '🏢 Recruiters'}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        {/* Title Input */}
-                        <Text style={styles.inputLabel}>Title</Text>
-                        <TextInput
-                            style={styles.textInput}
-                            placeholder="e.g. New Feature Alert! 🚀"
-                            value={notifTitle}
-                            onChangeText={setNotifTitle}
-                            placeholderTextColor="#9ca3af"
-                        />
-
-                        {/* Body Input */}
-                        <Text style={styles.inputLabel}>Message</Text>
-                        <TextInput
-                            style={[styles.textInput, styles.textArea]}
-                            placeholder="Write your notification message..."
-                            value={notifBody}
-                            onChangeText={setNotifBody}
-                            multiline
-                            numberOfLines={3}
-                            placeholderTextColor="#9ca3af"
-                        />
-
-                        {/* Send Button */}
-                        <TouchableOpacity
-                            style={[styles.sendBtn, sending && { opacity: 0.6 }]}
-                            onPress={handleSendNotification}
-                            disabled={sending}
-                        >
-                            <Bell size={20} color="#fff" />
-                            <Text style={styles.sendBtnText}>
-                                {sending ? 'Sending...' : 'Send Notification'}
-                            </Text>
-                        </TouchableOpacity>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
         </SafeAreaView>
