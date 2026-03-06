@@ -143,6 +143,8 @@ const RoleSelectionScreen: React.FC = () => {
                             </TouchableOpacity>
                         ))}
 
+
+
                         {/* Coming Soon - EV Infrastructure */}
                         <View style={styles.roleItemDisabled}>
                             <View style={styles.roleIconWrapperDisabled}>
