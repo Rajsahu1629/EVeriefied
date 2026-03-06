@@ -311,7 +311,13 @@ export async function getPlatformStats() {
     }>('/stats/platform');
 }
 
-// ============ ADMIN VERIFICATION ============
+// ============ ADMIN CARD ORDERS ============
+
+export async function getAllCardOrders() {
+    return request<any[]>('/admin/card-orders');
+}
+
+// ============ PUSH NOTIFICATIONS ============
 
 export async function getPendingVerificationUsers() {
     return request<any[]>('/admin/users/pending-verification');

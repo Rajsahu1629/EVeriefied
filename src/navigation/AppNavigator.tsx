@@ -24,6 +24,7 @@ import CandidateSearchScreen from '../screens/CandidateSearchScreen';
 import AdminVerificationRecheckScreen from '../screens/AdminVerificationRecheckScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import JobApplicantsScreen from '../screens/JobApplicantsScreen';
+import AdminCardOrdersScreen from '../screens/AdminCardOrdersScreen';
 
 // Navigators
 import UserTabNavigator from './UserTabNavigator';
@@ -50,6 +51,7 @@ export type RootStackParamList = {
     AdminVerificationRecheck: undefined;
     AdminDashboard: undefined;
     JobApplicants: { jobId: number; jobTitle: string };
+    AdminCardOrders: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -114,6 +116,7 @@ export const AppNavigator = () => {
                 <Stack.Screen name="CandidateSearch" component={CandidateSearchScreen} />
                 <Stack.Screen name="AdminVerificationRecheck" component={AdminVerificationRecheckScreen} />
                 <Stack.Screen name="JobApplicants" component={JobApplicantsScreen} />
+                <Stack.Screen name="AdminCardOrders" component={AdminCardOrdersScreen} />
             </Stack.Navigator>
         </NavigationContainer>
     );

@@ -249,4 +249,21 @@ router.put('/users/:id/admin-verify', async (req, res) => {
     }
 });
 
+// Get all users who have ordered a card
+router.get('/card-orders', async (req, res) => {
+    try {
+        const result = await query<any>(
+            `SELECT id, full_name, phone_number, role, city, state, pincode, 
+                    vehicle_category, training_role, verification_status, updated_at
+             FROM users
+             WHERE card_ordered = true
+             ORDER BY updated_at DESC`
+        );
+        res.json(result);
+    } catch (error) {
+        console.error('Get card orders error:', error);
+        res.status(500).json({ error: 'Failed to fetch card orders' });
+    }
+});
+
 export default router;
