@@ -146,12 +146,23 @@ const VerificationFormScreen: React.FC = () => {
     // Actually for edit profile we usually don't verify password unless changing it.
     // For now let's assume password change is not primary goal here, or we can make it optional.
 
-    // Fix brands if they are just ["Other"] etc.
+    // In edit mode, separate known brands from custom brands
     useEffect(() => {
-        if (isEditMode && userData) {
-            // Logic to extract "Other" brand name if needed, but JSON.parse should handle array
-            // If brands contains something not in list, it might be custom.
-            // Our toggle logic uses exact strings.
+        if (isEditMode && userData?.brands) {
+            const rawBrands: string[] = Array.isArray(userData.brands) ? userData.brands : JSON.parse(userData.brands);
+            const knownBrands = rawBrands.filter((b: string) => evBrands.includes(b));
+            const customBrands = rawBrands.filter((b: string) => !evBrands.includes(b));
+
+            if (customBrands.length > 0) {
+                // Put custom brands into otherBrandName and add 'Other' to the toggle list
+                setFormData(prev => ({
+                    ...prev,
+                    brands: [...knownBrands, 'Other'],
+                    otherBrandName: customBrands.join(', '),
+                }));
+            } else {
+                setFormData(prev => ({ ...prev, brands: knownBrands }));
+            }
         }
     }, [isEditMode, userData]);
 

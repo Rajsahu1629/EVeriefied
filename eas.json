@@ -14,11 +14,17 @@
             },
             "ios": {
                 "simulator": true
+            },
+            "env": {
+                "EXPO_PUBLIC_API_URL": "http://15.207.85.85:3001/api"
             }
         },
         "production": {
             "android": {
                 "buildType": "app-bundle"
+            },
+            "env": {
+                "EXPO_PUBLIC_API_URL": "http://15.207.85.85:3001/api"
             }
         }
     },

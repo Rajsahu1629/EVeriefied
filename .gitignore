@@ -41,3 +41,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Firebase service account keys (never commit these!)
+fcm-v1-key.json
+*-service-account*.json

@@ -36,12 +36,15 @@ export function useNotifications(
         registerForPushNotifications().then(token => {
             if (token) {
                 setPushToken(token);
+                console.log(`📱 Registering token for ${userType} #${userId}:`, token);
                 // Send token to backend
-                registerPushToken(userId, token, userType).catch(err =>
-                    console.warn('Failed to register push token with backend:', err)
-                );
+                registerPushToken(userId, token, userType)
+                    .then(() => console.log('✅ Push token registered with backend'))
+                    .catch(err => console.error('❌ Failed to register push token with backend:', err));
+            } else {
+                console.warn('⚠️ No push token received from registerForPushNotifications');
             }
-        });
+        }).catch(err => console.error('❌ registerForPushNotifications error:', err));
 
         // Listen for incoming notifications (foreground)
         notificationListener.current = Notifications.addNotificationReceivedListener(
