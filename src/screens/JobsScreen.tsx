@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,7 @@ import {
     StatusBar,
     TextInput,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -33,6 +34,7 @@ import { useNavigation } from '@react-navigation/native';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useLocationFilter, haversineDistance } from '../hooks/useLocationFilter';
 
 // Types
 interface JobPost {
@@ -45,6 +47,8 @@ interface JobPost {
     salary_max: number | null;
     pincode: string;
     city: string;
+    latitude: number | null;
+    longitude: number | null;
     stay_provided: boolean;
     has_incentive: boolean;
     training_role?: string;
@@ -67,18 +71,85 @@ export default function JobsScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredJobs, setFilteredJobs] = useState<JobPost[]>([]);
     const [salaryFilter, setSalaryFilter] = useState<number | null>(null); // Min salary filter
+    const [showAllJobs, setShowAllJobs] = useState(false);
 
-    // Fetch jobs from API
+    // Location hook
+    const { latitude: userLat, longitude: userLng, city: userCity, locationReady } = useLocationFilter();
+    const locationUsedRef = useRef(false);
+
+    // Load showAllJobs flag from AsyncStorage
+    useEffect(() => {
+        AsyncStorage.getItem('SHOW_ALL_JOBS').then((val) => {
+            if (val === 'true') setShowAllJobs(true);
+        });
+    }, []);
+
+    // Fetch jobs from API with location params
     const fetchJobs = useCallback(async () => {
         try {
-            const result = await getApprovedJobs();
-            setJobs(result);
-            setFilteredJobs(result);
+            let params: { lat?: number; lng?: number; city?: string; radius?: number } | undefined;
+
+            if (!showAllJobs) {
+                if (userLat != null && userLng != null) {
+                    params = { lat: userLat, lng: userLng };
+                } else if (userCity) {
+                    params = { city: userCity };
+                }
+                // If no location info at all → params stays undefined → backend returns all
+            }
+
+            const result = await getApprovedJobs(params);
+            let jobsList = result.jobs;
+
+            // Sort jobs: local/metro jobs at the top, rest at the bottom
+            if (!showAllJobs && params) {
+                // Metro region mapping — cities that belong to the same metro area
+                const METRO_REGIONS: Record<string, string[]> = {
+                    'delhi ncr': ['delhi', 'new delhi', 'noida', 'greater noida', 'gurgaon', 'gurugram', 'faridabad', 'ghaziabad', 'manesar', 'bahadurgarh', 'sonipat', 'panipat', 'meerut', 'ballabhgarh', 'palwal', 'rewari', 'bhiwadi'],
+                    'mumbai metro': ['mumbai', 'navi mumbai', 'thane', 'kalyan', 'dombivli', 'vasai', 'virar', 'panvel', 'bhiwandi', 'mira-bhayandar'],
+                    'bangalore metro': ['bangalore', 'bengaluru', 'electronic city', 'whitefield', 'yelahanka'],
+                    'hyderabad metro': ['hyderabad', 'secunderabad', 'cyberabad', 'gachibowli', 'shamshabad'],
+                    'chennai metro': ['chennai', 'tambaram', 'avadi', 'ambattur'],
+                    'kolkata metro': ['kolkata', 'howrah', 'salt lake', 'rajarhat'],
+                    'pune metro': ['pune', 'pimpri-chinchwad', 'hinjewadi', 'wakad'],
+                };
+
+                // Find which metro region a city belongs to
+                const getMetroCities = (city: string): string[] => {
+                    const lc = city.toLowerCase().trim();
+                    for (const [, cities] of Object.entries(METRO_REGIONS)) {
+                        if (cities.some(c => lc.includes(c) || c.includes(lc))) {
+                            return cities;
+                        }
+                    }
+                    return [lc];
+                };
+
+                // Check if a job city is in the user's metro region
+                const isLocalJob = (jobCity: string | null, targetCity: string) => {
+                    if (!jobCity) return false;
+                    const jc = jobCity.toLowerCase().trim();
+                    const metroCities = getMetroCities(targetCity);
+                    return metroCities.some(mc => jc.includes(mc) || mc.includes(jc));
+                };
+
+                const targetCity = userCity || params.city || '';
+                if (targetCity) {
+                    jobsList = [...jobsList].sort((a, b) => {
+                        const aLocal = isLocalJob(a.city, targetCity) ? 0 : 1;
+                        const bLocal = isLocalJob(b.city, targetCity) ? 0 : 1;
+                        return aLocal - bLocal;
+                    });
+                }
+            }
+
+            setJobs(jobsList);
+            setFilteredJobs(jobsList);
         } catch (error) {
             console.error('Error fetching jobs:', error);
             Alert.alert('Error', 'Failed to load jobs. Please try again.');
         }
-    }, []);
+    }, [showAllJobs, userLat, userLng, userCity]);
 
     // Fetch user's applied jobs
     const fetchAppliedJobs = useCallback(async () => {
@@ -92,15 +163,19 @@ export default function JobsScreen() {
         }
     }, [userData?.id]);
 
-    // Initial load
+    // Initial load — wait for location to be ready
     useEffect(() => {
+        if (!locationReady && !showAllJobs) return;
+        if (locationUsedRef.current) return;
+        locationUsedRef.current = true;
+
         const loadData = async () => {
             setLoading(true);
             await Promise.all([fetchJobs(), fetchAppliedJobs()]);
             setLoading(false);
         };
         loadData();
-    }, [fetchJobs, fetchAppliedJobs]);
+    }, [fetchJobs, fetchAppliedJobs, locationReady, showAllJobs]);
 
     // Pull to refresh
     const onRefresh = async () => {

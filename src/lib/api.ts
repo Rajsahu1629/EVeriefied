@@ -142,8 +142,27 @@ export async function registerRecruiter(recruiterData: {
 
 // ============ JOBS ============
 
-export async function getApprovedJobs() {
-    return request<any[]>('/jobs');
+export async function getApprovedJobs(params?: {
+    lat?: number;
+    lng?: number;
+    city?: string;
+    radius?: number;
+}): Promise<{ jobs: any[]; filterType: 'radius' | 'city' | 'all' }> {
+    const searchParams = new URLSearchParams();
+    if (params?.lat != null) searchParams.append('lat', params.lat.toString());
+    if (params?.lng != null) searchParams.append('lng', params.lng.toString());
+    if (params?.city) searchParams.append('city', params.city);
+    if (params?.radius != null) searchParams.append('radius', params.radius.toString());
+
+    const queryString = searchParams.toString();
+    const endpoint = queryString ? `/jobs?${queryString}` : '/jobs';
+    const result = await request<any>(endpoint);
+
+    // Handle both old (plain array) and new ({ jobs, filterType }) response formats
+    if (Array.isArray(result)) {
+        return { jobs: result, filterType: 'all' };
+    }
+    return { jobs: result.jobs || [], filterType: result.filterType || 'all' };
 }
 
 export async function createJob(recruiterId: number, jobData: {

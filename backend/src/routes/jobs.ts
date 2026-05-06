@@ -3,18 +3,71 @@ import { query } from '../db';
 
 const router = Router();
 
-// Get approved jobs (for users to view)
+// Get approved jobs (for users to view) — with optional location filtering
 router.get('/', async (req, res) => {
     try {
-        const result = await query<any>(
-            `SELECT jp.*, r.company_name 
-       FROM job_posts jp
-       JOIN recruiters r ON jp.recruiter_id = r.id
-       WHERE jp.is_active = true AND jp.status = 'approved'
-       ORDER BY jp.created_at DESC`
-        );
+        const { lat, lng, city, radius } = req.query;
+        const radiusKm = Number(radius) || 20;
 
-        res.json(result);
+        let jobs: any[];
+        let filterType: 'radius' | 'city' | 'all';
+
+        if (lat && lng) {
+            // Radius-based filtering using Haversine formula
+            // Excludes jobs with NULL latitude/longitude
+            const latitude = parseFloat(lat as string);
+            const longitude = parseFloat(lng as string);
+
+            jobs = await query<any>(
+                `SELECT jp.*, r.company_name,
+                    (6371 * acos(
+                        cos(radians($1)) * cos(radians(jp.latitude)) *
+                        cos(radians(jp.longitude) - radians($2)) +
+                        sin(radians($1)) * sin(radians(jp.latitude))
+                    )) AS distance_km
+                FROM job_posts jp
+                JOIN recruiters r ON jp.recruiter_id = r.id
+                WHERE jp.is_active = true AND jp.status = 'approved'
+                    AND jp.latitude IS NOT NULL AND jp.longitude IS NOT NULL
+                    AND (6371 * acos(
+                        cos(radians($1)) * cos(radians(jp.latitude)) *
+                        cos(radians(jp.longitude) - radians($2)) +
+                        sin(radians($1)) * sin(radians(jp.latitude))
+                    )) <= $3
+                ORDER BY distance_km ASC`,
+                [latitude, longitude, radiusKm]
+            );
+
+            filterType = 'radius';
+        } else if (city) {
+            // City-based filtering (case-insensitive, includes NULL lat/lng jobs)
+            const normalizedCity = (city as string).toLowerCase().trim();
+
+            jobs = await query<any>(
+                `SELECT jp.*, r.company_name
+                FROM job_posts jp
+                JOIN recruiters r ON jp.recruiter_id = r.id
+                WHERE jp.is_active = true AND jp.status = 'approved'
+                    AND LOWER(TRIM(jp.city)) = $1
+                ORDER BY jp.created_at DESC`,
+                [normalizedCity]
+            );
+
+            filterType = 'city';
+        } else {
+            // No location params — return all jobs
+            jobs = await query<any>(
+                `SELECT jp.*, r.company_name 
+                FROM job_posts jp
+                JOIN recruiters r ON jp.recruiter_id = r.id
+                WHERE jp.is_active = true AND jp.status = 'approved'
+                ORDER BY jp.created_at DESC`
+            );
+
+            filterType = 'all';
+        }
+
+        res.json({ jobs, filterType });
     } catch (error) {
         console.error('Get jobs error:', error);
         res.status(500).json({ error: 'Failed to fetch jobs' });
@@ -27,20 +80,26 @@ router.post('/', async (req, res) => {
         const {
             recruiterId, brand, roleRequired, numberOfPeople, experience,
             salaryMin, salaryMax, hasIncentive, pincode, city, stayProvided,
-            urgency, jobDescription, vehicleCategory, trainingRole
+            urgency, jobDescription, vehicleCategory, trainingRole,
+            latitude, longitude
         } = req.body;
+
+        // Normalize city to lowercase
+        const normalizedCity = city ? city.toLowerCase().trim() : city;
 
         const result = await query<any>(
             `INSERT INTO job_posts (
-        recruiter_id, brand, role_required, number_of_people, experience,
-        salary_min, salary_max, has_incentive, pincode, city, stay_provided,
-        urgency, job_description, status, is_active, vehicle_category, training_role
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-      RETURNING *`,
+                recruiter_id, brand, role_required, number_of_people, experience,
+                salary_min, salary_max, has_incentive, pincode, city, stay_provided,
+                urgency, job_description, status, is_active, vehicle_category, training_role,
+                latitude, longitude
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            RETURNING *`,
             [
                 recruiterId, brand, roleRequired, numberOfPeople, experience,
-                salaryMin, salaryMax, hasIncentive, pincode, city, stayProvided,
-                urgency, jobDescription, 'pending', true, vehicleCategory || null, trainingRole || null
+                salaryMin, salaryMax, hasIncentive, pincode, normalizedCity, stayProvided,
+                urgency, jobDescription, 'pending', true, vehicleCategory || null, trainingRole || null,
+                latitude || null, longitude || null
             ]
         );
 
@@ -58,7 +117,8 @@ router.put('/:id', async (req, res) => {
         const {
             brand, roleRequired, numberOfPeople, experience,
             salaryMin, salaryMax, hasIncentive, pincode, city, stayProvided,
-            urgency, jobDescription, vehicleCategory, trainingRole
+            urgency, jobDescription, vehicleCategory, trainingRole,
+            latitude, longitude
         } = req.body;
 
         // Check current status
@@ -72,17 +132,21 @@ router.put('/:id', async (req, res) => {
             return res.status(403).json({ error: 'Cannot edit an approved job post' });
         }
 
+        // Normalize city to lowercase
+        const normalizedCity = city ? city.toLowerCase().trim() : city;
+
         await query(
             `UPDATE job_posts SET 
-        brand = $1, role_required = $2, number_of_people = $3, experience = $4,
-        salary_min = $5, salary_max = $6, has_incentive = $7, pincode = $8, city = $9, 
-        stay_provided = $10, urgency = $11, job_description = $12, vehicle_category = $13,
-        training_role = $14, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $15`,
+                brand = $1, role_required = $2, number_of_people = $3, experience = $4,
+                salary_min = $5, salary_max = $6, has_incentive = $7, pincode = $8, city = $9, 
+                stay_provided = $10, urgency = $11, job_description = $12, vehicle_category = $13,
+                training_role = $14, latitude = $15, longitude = $16, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $17`,
             [
                 brand, roleRequired, numberOfPeople, experience,
-                salaryMin, salaryMax, hasIncentive, pincode, city, stayProvided,
-                urgency, jobDescription, vehicleCategory || null, trainingRole || null, id
+                salaryMin, salaryMax, hasIncentive, pincode, normalizedCity, stayProvided,
+                urgency, jobDescription, vehicleCategory || null, trainingRole || null,
+                latitude || null, longitude || null, id
             ]
         );
 

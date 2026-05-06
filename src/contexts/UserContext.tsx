@@ -32,6 +32,8 @@ export interface UserData {
     vehicle_category?: '2W' | '3W';
     training_role?: string;
     is_admin_verified?: boolean;
+    latitude?: number;
+    longitude?: number;
 
     // Additional fields needed for Edit Profile
     current_workshop?: string; // DB uses snake_case, let's keep consistent with how we access
@@ -203,6 +205,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     brand_workshop: user.brand_workshop,
                     prior_knowledge: user.prior_knowledge,
                     current_salary: user.current_salary,
+                    latitude: user.latitude,
+                    longitude: user.longitude,
                 };
                 setUserData(mapped);
             }

@@ -27,8 +27,12 @@ router.post('/', async (req, res) => {
             fullName, phoneNumber, password, state, city, pincode,
             qualification, experience, currentWorkshop, brandWorkshop,
             brands, role, priorKnowledge, currentSalary,
-            domain, vehicleCategory, trainingRole
+            domain, vehicleCategory, trainingRole,
+            latitude, longitude
         } = req.body;
+
+        // Normalize city to lowercase
+        const normalizedCity = city ? city.toLowerCase().trim() : city;
 
         // Check if user already exists
         const existingUsers = await query<any>(
@@ -54,14 +58,15 @@ router.post('/', async (req, res) => {
         full_name, phone_number, password, state, city, pincode,
         qualification, experience, current_workshop, brand_workshop,
         brands, role, verification_status, verification_step, prior_knowledge, current_salary,
-        domain, vehicle_category, training_role
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        domain, vehicle_category, training_role, latitude, longitude
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *`,
             [
-                fullName, phoneNumber, password, state, city, pincode,
+                fullName, phoneNumber, password, state, normalizedCity, pincode,
                 qualification, experience, currentWorkshop, brandWorkshop,
                 JSON.stringify(brands || []), role, 'pending', 1, priorKnowledge, currentSalary,
-                domain, vehicleCategory || null, trainingRole || null
+                domain, vehicleCategory || null, trainingRole || null,
+                latitude || null, longitude || null
             ]
         );
 
@@ -86,6 +91,8 @@ router.post('/', async (req, res) => {
                 domain: user.domain,
                 vehicle_category: user.vehicle_category,
                 training_role: user.training_role,
+                latitude: user.latitude,
+                longitude: user.longitude,
             }
         });
     } catch (error) {
@@ -132,6 +139,8 @@ router.get('/:id', async (req, res) => {
             brand_workshop: raw.brand_workshop,
             prior_knowledge: raw.prior_knowledge,
             current_salary: raw.current_salary,
+            latitude: raw.latitude,
+            longitude: raw.longitude,
         });
     } catch (error) {
         console.error('Get user error:', error);
@@ -146,20 +155,26 @@ router.put('/:id', async (req, res) => {
         const {
             fullName, state, city, pincode, qualification, experience,
             currentWorkshop, brandWorkshop, brands, priorKnowledge, currentSalary,
-            domain, vehicleCategory, trainingRole
+            domain, vehicleCategory, trainingRole,
+            latitude, longitude
         } = req.body;
+
+        // Normalize city to lowercase
+        const normalizedCity = city ? city.toLowerCase().trim() : city;
 
         await query(
             `UPDATE users SET 
         full_name = $1, state = $2, city = $3, pincode = $4,
         qualification = $5, experience = $6, current_workshop = $7, brand_workshop = $8,
         brands = $9, prior_knowledge = $10, current_salary = $11,
-        domain = $12, vehicle_category = $13, training_role = $14, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $15`,
+        domain = $12, vehicle_category = $13, training_role = $14,
+        latitude = $15, longitude = $16, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $17`,
             [
-                fullName, state, city, pincode, qualification, experience,
+                fullName, state, normalizedCity, pincode, qualification, experience,
                 currentWorkshop, brandWorkshop, JSON.stringify(brands || []),
-                priorKnowledge, currentSalary, domain, vehicleCategory || null, trainingRole || null, id
+                priorKnowledge, currentSalary, domain, vehicleCategory || null, trainingRole || null,
+                latitude || null, longitude || null, id
             ]
         );
 
