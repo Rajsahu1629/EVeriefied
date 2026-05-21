@@ -20,7 +20,7 @@ import Svg, { Path, Circle, Line } from 'react-native-svg';
 import {
     Zap, Star, CheckCircle, Clock, AlertCircle, LogOut,
     Package, ChevronRight, X, MapPin, Phone, User, Home, Download, Share2,
-    Instagram, MessageCircle, Facebook, Edit
+    Instagram, MessageCircle, Facebook, Edit, FileText
 } from 'lucide-react-native';
 import { useUser, VerificationStatus, UserData } from '../contexts/UserContext';
 import { colors, spacing } from '../lib/theme';
@@ -34,6 +34,7 @@ import * as FileSystem from 'expo-file-system';
 import { captureRef } from 'react-native-view-shot';
 import { useRef } from 'react';
 import { getCardOrderStatus, updateCardOrderStatus } from '../lib/api';
+import { generateAndShareResumePdf, buildResumeLabelsFromT } from '../lib/resumePdf';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // Standard base width (iPhone 13/14 approx)
@@ -158,10 +159,10 @@ const getVerificationProgress = (userData: UserData | null | undefined, t: (key:
         if (status === 'verified') return t('allTestsPassed');
         if (status === 'failed') return t('retryAfter7Days');
 
-        if (step === 0) return "Basic Verification Pending";
-        if (step === 1) return "Engine Expert ";
-        if (step === 2) return "Diagnosis Expert(Electrical)";
-        return "Diagnosis + Engine Expert";
+        if (step === 0) return t('bs6VerificationPending');
+        if (step === 1) return t('bs6EngineExpert');
+        if (step === 2) return t('bs6DiagnosisExpert');
+        return t('bs6FullExpert');
     }
 
     const isSingleStepRole = role === 'sales' || role === 'workshop' || role === 'aspirant';
@@ -189,6 +190,7 @@ export default function IDCardScreen() {
     });
     const [cardOrdered, setCardOrdered] = useState(false);
     const [isOrderLoading, setIsOrderLoading] = useState(false);
+    const [isResumeLoading, setIsResumeLoading] = useState(false);
 
     // Check if card was already ordered
     React.useEffect(() => {
@@ -295,7 +297,7 @@ export default function IDCardScreen() {
 
     const handleOrderCard = async () => {
         if (!orderForm.fullName || !orderForm.address || !orderForm.pincode || !orderForm.mobile) {
-            Alert.alert('Missing Details', 'Please fill all required fields');
+            Alert.alert(t('missingDetails'), t('fillAllFields'));
             return;
         }
 
@@ -303,11 +305,11 @@ export default function IDCardScreen() {
         try {
             await updateCardOrderStatus(userData?.id || '', true);
             setCardOrdered(true);
-            Alert.alert('Order Placed!', 'Your physical ID Card for Rs 199 will be delivered within 7-10 days.');
+            Alert.alert(t('orderPlaced'), t('orderPlacedMsg'));
             setShowOrderModal(false);
         } catch (error) {
             console.error('Order error:', error);
-            Alert.alert('Error', 'Failed to place order. Please try again.');
+            Alert.alert(t('error'), t('submitFailed'));
         } finally {
             setIsOrderLoading(false);
         }
@@ -350,23 +352,40 @@ export default function IDCardScreen() {
 
             const isSharingAvailable = await Sharing.isAvailableAsync();
             if (!isSharingAvailable) {
-                Alert.alert('Error', 'Sharing not available on this device');
+                Alert.alert(t('error'), t('networkError'));
                 return;
             }
 
-            // Using Sharing.shareAsync instead of MediaLibrary.
-            // This allows the user to click "Save Image" or "Save to Files" from the system sheet.
-            // This method does NOT require broad media permissions from the app itself.
             await Sharing.shareAsync(uri, {
                 mimeType: 'image/png',
-                dialogTitle: 'Download your ID card',
-                UTI: 'public.png', // for iOS
+                dialogTitle: t('download'),
+                UTI: 'public.png',
             });
 
             setShowShareModal(false);
         } catch (error) {
             console.error('Download error:', error);
-            Alert.alert('Error', 'Could not save. Please take a screenshot manually.');
+            Alert.alert(t('error'), t('resumeFailed'));
+        }
+    };
+
+    const handleDownloadResume = async () => {
+        if (!userData) return;
+        setIsResumeLoading(true);
+        try {
+            await generateAndShareResumePdf({
+                user: userData,
+                roleTitle: roleInfo.title,
+                labels: buildResumeLabelsFromT(t),
+            });
+            if (Platform.OS === 'web') {
+                Alert.alert(t('downloadResume'), t('resumeWebPrintHint'));
+            }
+        } catch (error) {
+            console.error('Resume PDF error:', error);
+            Alert.alert(t('error'), t('resumeFailed'));
+        } finally {
+            setIsResumeLoading(false);
         }
     };
 
@@ -400,7 +419,11 @@ export default function IDCardScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
-                <Text style={styles.welcomeText}>{t('welcome')}, {userData?.fullName?.split(' ')[0] || 'User'}!</Text>
+                <Text style={styles.welcomeText}>
+                    {t('welcomeUser', {
+                        name: userData?.fullName?.split(' ')[0] || t('user'),
+                    })}
+                </Text>
                 <Text style={styles.roleText}>{roleInfo.title}</Text>
             </LinearGradient>
 
@@ -457,7 +480,7 @@ export default function IDCardScreen() {
                                     </View>
                                     <View>
                                         <Text style={{ color: '#FFC107', fontSize: scale(10), fontWeight: 'bold', letterSpacing: scale(1) }}>{t('testPassed').toUpperCase()}</Text>
-                                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: scale(8) }}>Pending Admin Approval</Text>
+                                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: scale(8) }}>{t('pendingAdminApproval')}</Text>
                                     </View>
                                 </View>
                             ) : (
@@ -531,21 +554,21 @@ export default function IDCardScreen() {
                     {!isVerified && userData?.verificationStatus !== 'failed' && (
                         <TouchableOpacity onPress={handleStartVerification} style={styles.verifyBtn}>
                             <Text style={styles.verifyBtnText}>
-                                {userData?.verificationStatus === 'step1_completed' ? t('continue') : t('startVerification').split(' ')[0]}
+                                {userData?.verificationStatus === 'step1_completed' ? t('continue') : t('start')}
                             </Text>
                             <ChevronRight size={scale(16)} color="#fff" />
                         </TouchableOpacity>
                     )}
                 </View>
 
-                {/* Action Buttons (Edit/Download/Share) */}
+                {/* Action Buttons */}
                 <View style={styles.actionRow}>
                     <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: '#f59e0b', flex: 0.8 }]}
+                        style={[styles.actionBtn, { backgroundColor: '#f59e0b', flex: 0.9 }]}
                         onPress={() => navigation.navigate('VerificationForm', { isEditMode: true } as any)}
                     >
                         <Edit size={scale(18)} color="#fff" />
-                        <Text style={styles.actionBtnText}>{t('edit') || 'Edit'}</Text>
+                        <Text style={styles.actionBtnText}>{t('edit')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.actionBtn} onPress={handleDownload}>
@@ -558,6 +581,17 @@ export default function IDCardScreen() {
                         <Text style={[styles.actionBtnText, { color: colors.foreground }]}>{t('share')}</Text>
                     </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity
+                    style={[styles.resumeBtn, isResumeLoading && { opacity: 0.7 }]}
+                    onPress={handleDownloadResume}
+                    disabled={isResumeLoading}
+                >
+                    <Download size={scale(20)} color="#fff" />
+                    <Text style={styles.resumeBtnText}>
+                        {isResumeLoading ? t('resumeGenerating') : t('downloadResume')}
+                    </Text>
+                </TouchableOpacity>
 
                 {/* Physical Card Order - Now visible to all professionals */}
                 <TouchableOpacity
@@ -589,7 +623,7 @@ export default function IDCardScreen() {
                         const message = 'Hi, I need help with EVerified app.';
                         const url = `whatsapp://send?phone=${whatsappNumber}&text=${encodeURIComponent(message)}`;
                         Linking.openURL(url).catch(() => {
-                            Alert.alert('WhatsApp not installed', 'Please install WhatsApp to contact support.');
+                            Alert.alert(t('whatsappNotInstalled'), t('installWhatsapp'));
                         });
                     }}
                 >
@@ -826,7 +860,18 @@ const styles = StyleSheet.create({
     verifyBtnText: { color: '#fff', fontSize: scale(13), fontWeight: '600' },
 
     // Actions
-    actionRow: { flexDirection: 'row', gap: scale(12), marginBottom: scale(16) },
+    actionRow: { flexDirection: 'row', gap: scale(12), marginBottom: scale(12) },
+    resumeBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: scale(10),
+        backgroundColor: '#0d9488',
+        padding: scale(16),
+        borderRadius: scale(14),
+        marginBottom: scale(16),
+    },
+    resumeBtnText: { color: '#fff', fontWeight: '700', fontSize: scale(15) },
     actionBtn: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(8), padding: scale(14), backgroundColor: '#1a9d6e', borderRadius: scale(14) },
     shareBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
     actionBtnText: { color: '#fff', fontWeight: '600', fontSize: scale(14) },

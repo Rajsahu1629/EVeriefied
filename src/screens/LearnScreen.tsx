@@ -9,7 +9,8 @@ import {
     BookOpen, Play, ExternalLink, Zap, Battery, Wrench, Award,
     Trophy, Star, CheckCircle, XCircle, Timer
 } from 'lucide-react-native';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage, type Language } from '../contexts/LanguageContext';
+import { pickLocalizedText } from '../lib/localizedContent';
 import { useUser } from '../contexts/UserContext';
 import { getLeaderboard, submitQuizScore } from '../lib/api';
 
@@ -32,10 +33,17 @@ const QUIZ_QUESTIONS = [
 
 interface LeaderboardEntry { full_name: string; score: number; }
 
+function localizedEnHi(
+    en: string,
+    hi: string,
+    language: Language
+): string {
+    return pickLocalizedText({ en, hi }, language, en);
+}
+
 export default function LearnScreen() {
-    const { language } = useLanguage();
+    const { language, t } = useLanguage();
     const { userData } = useUser();
-    const isHindi = language === 'hi';
 
     const [tab, setTab] = useState<'videos' | 'quiz'>('videos');
     const [quizState, setQuizState] = useState<'waiting' | 'playing' | 'finished'>('waiting');
@@ -101,16 +109,16 @@ export default function LearnScreen() {
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar barStyle="light-content" />
-            <View style={styles.header}><BookOpen size={22} color="#fff" /><Text style={styles.headerTitle}>{isHindi ? 'सीखें' : 'Learn'}</Text></View>
+            <View style={styles.header}><BookOpen size={22} color="#fff" /><Text style={styles.headerTitle}>{t('learnings')}</Text></View>
 
             <View style={styles.tabs}>
                 <TouchableOpacity style={[styles.tab, tab === 'videos' && styles.tabActive]} onPress={() => setTab('videos')}>
                     <Play size={16} color={tab === 'videos' ? '#fff' : colors.muted} />
-                    <Text style={[styles.tabText, tab === 'videos' && styles.tabTextActive]}>{isHindi ? 'वीडियो' : 'Videos'}</Text>
+                    <Text style={[styles.tabText, tab === 'videos' && styles.tabTextActive]}>{t('videos') || 'Videos'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.tab, tab === 'quiz' && styles.tabActive]} onPress={() => setTab('quiz')}>
                     <Trophy size={16} color={tab === 'quiz' ? '#fff' : colors.muted} />
-                    <Text style={[styles.tabText, tab === 'quiz' && styles.tabTextActive]}>{isHindi ? 'क्विज़' : 'Quiz'}</Text>
+                    <Text style={[styles.tabText, tab === 'quiz' && styles.tabTextActive]}>{t('quiz')}</Text>
                     {isQuizTime && <View style={styles.liveDot} />}
                 </TouchableOpacity>
             </View>
@@ -124,9 +132,7 @@ export default function LearnScreen() {
                             </View>
                             <Text style={styles.channelTitle}>2Wheeler Tech EV</Text>
                             <Text style={styles.channelSub}>
-                                {isHindi
-                                    ? 'हमारे यूट्यूब चैनल पर EV रिपेयरिंग सीखें'
-                                    : 'Learn EV Repairing on our YouTube Channel'}
+                                {t('learningsComingSoon')}
                             </Text>
                         </View>
 
@@ -135,23 +141,23 @@ export default function LearnScreen() {
                             onPress={() => Linking.openURL('https://www.youtube.com/@2wheeler_techEV')}
                         >
                             <Text style={styles.channelBtnText}>
-                                {isHindi ? 'चैनल पर जाएं' : 'Visit Channel'}
+                                {t('visitChannel')}
                             </Text>
                             <ExternalLink size={18} color="#fff" />
                         </TouchableOpacity>
 
                         <View style={styles.featuresList}>
                             {[
-                                { icon: Zap, label: 'EV Basics', color: '#3b82f6' },
-                                { icon: Battery, label: 'Battery Tech', color: '#10b981' },
-                                { icon: Wrench, label: 'Motor Repair', color: '#f59e0b' },
-                                { icon: Award, label: 'Certification', color: '#8b5cf6' },
+                                { icon: Zap, labelKey: 'evBasics', color: '#3b82f6' },
+                                { icon: Battery, labelKey: 'batteryTech', color: '#10b981' },
+                                { icon: Wrench, labelKey: 'motorRepair', color: '#f59e0b' },
+                                { icon: Award, labelKey: 'certification', color: '#8b5cf6' },
                             ].map((f, i) => {
                                 const Icon = f.icon;
                                 return (
                                     <View key={i} style={styles.featureItem}>
                                         <Icon size={20} color={f.color} />
-                                        <Text style={styles.featureLabel}>{f.label}</Text>
+                                        <Text style={styles.featureLabel}>{t(f.labelKey)}</Text>
                                     </View>
                                 );
                             })}
@@ -160,7 +166,7 @@ export default function LearnScreen() {
                 ) : quizState === 'playing' ? (
                     <View style={styles.quizContainer}>
                         <View style={styles.quizHeader}><Text style={styles.qNum}>{currentQuestion + 1}/5</Text><View style={styles.scoreBox}><Star size={14} color="#f59e0b" /><Text style={styles.scoreText}>{score}</Text></View></View>
-                        <View style={styles.questionCard}><Text style={styles.questionText}>{isHindi ? QUIZ_QUESTIONS[currentQuestion].question_hi : QUIZ_QUESTIONS[currentQuestion].question_en}</Text></View>
+                        <View style={styles.questionCard}><Text style={styles.questionText}>{localizedEnHi(QUIZ_QUESTIONS[currentQuestion].question_en, QUIZ_QUESTIONS[currentQuestion].question_hi, language)}</Text></View>
                         {QUIZ_QUESTIONS[currentQuestion].options.map((opt, i) => {
                             let bg = '#fff', border = '#e2e8f0', txtColor = colors.foreground;
                             if (showResult && i === QUIZ_QUESTIONS[currentQuestion].correct) { bg = '#10b981'; border = '#10b981'; txtColor = '#fff'; }
@@ -169,16 +175,16 @@ export default function LearnScreen() {
                         })}
                     </View>
                 ) : quizState === 'finished' ? (
-                    <View style={styles.finishedCard}><Trophy size={50} color="#f59e0b" /><Text style={styles.finishedTitle}>{score >= 40 ? '🎉 Great!' : '💪 Keep Learning!'}</Text><Text style={styles.finalScore}>{score}/50</Text><TouchableOpacity style={styles.backBtn} onPress={() => setQuizState('waiting')}><Text style={styles.backBtnText}>{isHindi ? 'वापस' : 'Back'}</Text></TouchableOpacity></View>
+                    <View style={styles.finishedCard}><Trophy size={50} color="#f59e0b" /><Text style={styles.finishedTitle}>{score >= 40 ? `🎉 ${t('greatJob')}` : `💪 ${t('keepLearning')}`}</Text><Text style={styles.finalScore}>{score}/50</Text><TouchableOpacity style={styles.backBtn} onPress={() => setQuizState('waiting')}><Text style={styles.backBtnText}>{t('back')}</Text></TouchableOpacity></View>
                 ) : (
                     <>
                         <View style={[styles.quizBanner, isQuizTime && { backgroundColor: '#10b981' }]}>
-                            <Trophy size={32} color="#fff" /><Text style={styles.bannerTitle}>{isHindi ? 'डेली क्विज़' : 'Daily Quiz'}</Text><Text style={styles.bannerSub}>{isHindi ? 'हर रात 8 बजे' : 'Every night 8 PM'}</Text>
+                            <Trophy size={32} color="#fff" /><Text style={styles.bannerTitle}>{t('dailyQuiz')}</Text><Text style={styles.bannerSub}>{t('dailyQuizSub')}</Text>
                             <View style={styles.timerBox}><Timer size={16} color={isQuizTime ? '#dc2626' : '#f59e0b'} /><Text style={[styles.timerText, isQuizTime && { color: '#dc2626' }]}>{timeToQuiz}</Text></View>
-                            {isQuizTime ? (<TouchableOpacity style={styles.playNowBtn} onPress={startQuiz}><Play size={18} color="#fff" fill="#fff" /><Text style={styles.playNowText}>{isHindi ? 'खेलें' : 'Play'}</Text></TouchableOpacity>) : (<Text style={styles.waitText}>{isHindi ? '8 PM पर आएं!' : 'Come at 8 PM!'}</Text>)}
+                            {isQuizTime ? (<TouchableOpacity style={styles.playNowBtn} onPress={startQuiz}><Play size={18} color="#fff" fill="#fff" /><Text style={styles.playNowText}>{t('play')}</Text></TouchableOpacity>) : (<Text style={styles.waitText}>{t('comeAt8')}</Text>)}
                         </View>
-                        <Text style={styles.sectionTitle}>🏆 {isHindi ? 'लीडरबोर्ड' : 'Leaderboard'}</Text>
-                        {loadingLB ? <ActivityIndicator color={colors.primary} /> : leaderboard.length === 0 ? (<Text style={styles.emptyText}>{isHindi ? 'आज कोई नहीं खेला' : 'No one played today'}</Text>) : leaderboard.map((e, i) => (<View key={i} style={[styles.lbRow, i === 0 && { backgroundColor: '#fef3c7' }]}><Text style={styles.lbRank}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</Text><Text style={styles.lbName} numberOfLines={1}>{e.full_name}</Text><Text style={styles.lbScore}>{e.score} pts</Text></View>))}
+                        <Text style={styles.sectionTitle}>🏆 {t('leaderboard')}</Text>
+                        {loadingLB ? <ActivityIndicator color={colors.primary} /> : leaderboard.length === 0 ? (<Text style={styles.emptyText}>{t('noOnePlayed')}</Text>) : leaderboard.map((e, i) => (<View key={i} style={[styles.lbRow, i === 0 && { backgroundColor: '#fef3c7' }]}><Text style={styles.lbRank}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</Text><Text style={styles.lbName} numberOfLines={1}>{e.full_name}</Text><Text style={styles.lbScore}>{e.score} pts</Text></View>))}
                     </>
                 )}
                 <View style={{ height: 100 }} />

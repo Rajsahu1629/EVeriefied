@@ -93,7 +93,7 @@ const VerificationFormScreen: React.FC = () => {
     const isEditMode = route.params?.isEditMode;
 
     const { t } = useLanguage();
-    const { selectedRole, selectedDomain, userData, refreshUserData } = useUser();
+    const { selectedRole, selectedDomain, selectedSubRole, userData, refreshUserData } = useUser();
 
     // Define options with translations
     const qualifications = [
@@ -139,7 +139,7 @@ const VerificationFormScreen: React.FC = () => {
         currentSalary: userData?.current_salary || '',
         domain: userData?.domain || selectedDomain || '',
         vehicleCategory: userData?.vehicle_category || '',
-        trainingRole: userData?.training_role || '',
+        trainingRole: userData?.training_role || selectedSubRole || '',
     });
 
     // Populate password if edit mode (optional, or just leave blank to keep same)

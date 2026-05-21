@@ -20,6 +20,7 @@ import { Button } from '../components/ui/Button';
 import { Progress } from '../components/ui/Progress';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
 import { getVerificationQuestions, updateUserVerification } from '../lib/api';
+import { getQuestionText, parseQuestionOptions, pickLocalizedOption } from '../lib/localizedContent';
 import { LanguageSelector } from '../components/LanguageSelector';
 
 type SkillVerificationNavigationProp = StackNavigationProp<RootStackParamList, 'SkillVerification'>;
@@ -68,7 +69,12 @@ const SkillVerificationScreen: React.FC = () => {
         try {
             const role = (userData?.role === 'aspirant' ? 'technician' : userData?.role) || 'technician';
             const result = await getVerificationQuestions(role, currentStep);
-            setQuestions(result);
+            setQuestions(
+                result.map((q: Question) => ({
+                    ...q,
+                    options: parseQuestionOptions(q.options) as Question['options'],
+                }))
+            );
 
             if (result.length === 0) {
                 console.warn('No questions found');
@@ -283,16 +289,11 @@ const SkillVerificationScreen: React.FC = () => {
                 </Text>
 
                 <Text style={styles.questionText}>
-                    {language === 'hi' ? currentQuestion?.question_text_hi :
-                        language === 'mr' ? (currentQuestion?.question_text_mr || currentQuestion?.question_text_en) :
-                            language === 'kn' ? (currentQuestion?.question_text_kn || currentQuestion?.question_text_en) :
-                                language === 'te' ? (currentQuestion?.question_text_te || currentQuestion?.question_text_en) :
-                                    language === 'or' ? (currentQuestion?.question_text_or || currentQuestion?.question_text_en) :
-                                        currentQuestion?.question_text_en}
+                    {currentQuestion ? getQuestionText(currentQuestion, language) : ''}
                 </Text>
 
                 <View style={styles.optionsContainer}>
-                    {currentQuestion?.options.map((option, index) => (
+                    {parseQuestionOptions(currentQuestion?.options).map((option, index) => (
                         <TouchableOpacity
                             key={index}
                             style={[
@@ -312,12 +313,7 @@ const SkillVerificationScreen: React.FC = () => {
                                 styles.optionText,
                                 selectedAnswer === index && styles.optionTextSelected,
                             ]}>
-                                {language === 'hi' ? option.hi :
-                                    language === 'mr' ? (option.mr || option.en) :
-                                        language === 'kn' ? (option.kn || option.en) :
-                                            language === 'te' ? (option.te || option.en) :
-                                                language === 'or' ? (option.or || option.en) :
-                                                    option.en}
+                                {pickLocalizedOption(option, language)}
                             </Text>
                         </TouchableOpacity>
                     ))}

@@ -31,8 +31,8 @@ const roles: RoleItem[] = [
     { key: 'aspirant', icon: GraduationCap, titleKey: 'evAspirant', descKey: 'evAspirantDesc' },
     { key: 'technician', icon: Wrench, titleKey: 'evTechnician', descKey: 'evTechnicianDesc' },
     { key: 'bs6_technician', icon: Wrench, titleKey: 'bs6Technician', descKey: 'bs6TechnicianDesc' },
-    { key: 'sales', icon: ShoppingBag, titleKey: 'showroomManager', descKey: 'evShowroomManagerDesc' },
-    { key: 'workshop', icon: Building2, titleKey: 'workshopManager', descKey: 'evWorkshopManagerDesc' },
+    { key: 'sales', icon: ShoppingBag, titleKey: 'showroom', descKey: 'evShowroomManagerDesc' },
+    { key: 'workshop', icon: Building2, titleKey: 'workshopFleet', descKey: 'evWorkshopManagerDesc' },
     { key: 'recruiter', icon: Users, titleKey: 'recruiter', descKey: 'evRecruiterDesc' },
 ];
 
@@ -86,11 +86,14 @@ const RoleSelectionScreen: React.FC = () => {
                 setSelectedDomain('BS6');
             }
             navigation.navigate('ActionSelection');
+        } else if (roleKey === 'sales' || roleKey === 'workshop') {
+            setSelectedRole(roleKey);
+            if (setSelectedDomain) {
+                setSelectedDomain(null);
+            }
+            navigation.navigate('SubRoleSelection', { parentRole: roleKey });
         } else {
             setSelectedRole(roleKey as UserRole);
-            // Default to EV if not BS6, or leave null to let user choose? 
-            // Ideally clear it or set to EV? Let's clear it to be safe or set to EV if it's EV Technician.
-            // But 'technician' key implies EV Technician in the UI.
             if (setSelectedDomain) {
                 if (roleKey === 'technician') setSelectedDomain('EV');
                 else setSelectedDomain(null);

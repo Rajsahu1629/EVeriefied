@@ -22,7 +22,8 @@ import { LanguageToggle } from '../components/LanguageToggle';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { loginRecruiter } from '../lib/api';
+import { loginRecruiter, loginAsAdmin } from '../lib/api';
+import { clearAdminToken } from '../lib/adminAuth';
 
 type RecruiterLoginNavigationProp = StackNavigationProp<RootStackParamList, 'RecruiterLogin'>;
 
@@ -53,34 +54,27 @@ const RecruiterLoginScreen: React.FC = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    // Admin credentials
-    const ADMIN_PHONE = '9473928468';
-    const ADMIN_PASSWORD = 'Rajsahu@2000';
-
     const handleLogin = async () => {
         if (!validate()) return;
 
         setIsLoading(true);
 
-        // Trim inputs to remove accidental spaces
         const trimmedPhone = phoneNumber.trim();
         const trimmedPassword = password.trim();
 
-        console.log('Login attempt:', { phone: trimmedPhone, passwordLength: trimmedPassword.length });
-
-        // Check for admin login
-        if (trimmedPhone === ADMIN_PHONE && trimmedPassword === ADMIN_PASSWORD) {
-            console.log('Admin login successful!');
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'AdminJobApproval' }],
-            });
-            setIsLoading(false);
-            return;
-        }
-
         try {
-            const response = await loginRecruiter(phoneNumber, password);
+            // Admin credentials → admin panel; otherwise normal recruiter login
+            const isAdmin = await loginAsAdmin(trimmedPhone, trimmedPassword);
+            if (isAdmin) {
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'AdminDashboard' }],
+                });
+                return;
+            }
+
+            await clearAdminToken();
+            const response = await loginRecruiter(trimmedPhone, trimmedPassword);
 
             if (!response.success || !response.recruiter) {
                 Alert.alert(t('error'), t('loginFailed'));

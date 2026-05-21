@@ -1,8 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { LayoutGrid, Briefcase, FileText, BookOpen, Newspaper, User } from 'lucide-react-native';
+import { Briefcase, FileText, BookOpen, Newspaper, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing } from '../lib/theme';
+import { colors } from '../lib/theme';
+import { useLanguage } from '../contexts/LanguageContext';
 
 import IDCardScreen from '../screens/IDCardScreen';
 import JobsScreen from '../screens/JobsScreen';
@@ -14,6 +15,7 @@ const Tab = createBottomTabNavigator();
 
 export default function UserTabNavigator() {
     const insets = useSafeAreaInsets();
+    const { t } = useLanguage();
 
     return (
         <Tab.Navigator
@@ -45,7 +47,7 @@ export default function UserTabNavigator() {
                 name="IDCard"
                 component={IDCardScreen}
                 options={{
-                    tabBarLabel: 'ID Card',
+                    tabBarLabel: t('idCard'),
                     tabBarIcon: ({ color, size }) => (
                         <User size={24} color={color} />
                     ),
@@ -56,7 +58,7 @@ export default function UserTabNavigator() {
                 name="Jobs"
                 component={JobsScreen}
                 options={{
-                    tabBarLabel: 'Jobs',
+                    tabBarLabel: t('jobs'),
                     tabBarIcon: ({ color, size }) => (
                         <Briefcase size={24} color={color} />
                     ),
@@ -67,7 +69,7 @@ export default function UserTabNavigator() {
                 name="Applied"
                 component={AppliedJobsScreen}
                 options={{
-                    tabBarLabel: 'Applied',
+                    tabBarLabel: t('tabAppliedShort'),
                     tabBarIcon: ({ color, size }) => (
                         <FileText size={24} color={color} />
                     ),
@@ -78,7 +80,7 @@ export default function UserTabNavigator() {
                 name="Learn"
                 component={LearnScreen}
                 options={{
-                    tabBarLabel: 'Learn',
+                    tabBarLabel: t('learn'),
                     tabBarIcon: ({ color, size }) => (
                         <BookOpen size={24} color={color} />
                     ),
@@ -89,7 +91,7 @@ export default function UserTabNavigator() {
                 name="News"
                 component={NewsScreen}
                 options={{
-                    tabBarLabel: 'News',
+                    tabBarLabel: t('news'),
                     tabBarIcon: ({ color, size }) => (
                         <Newspaper size={24} color={color} />
                     ),

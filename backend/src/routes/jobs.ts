@@ -115,6 +115,32 @@ router.get('/recruiter/:recruiterId', async (req, res) => {
     }
 });
 
+// Mark job vacancies as filled (hide from candidate job list)
+router.put('/:id/mark-filled', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { recruiterId } = req.body;
+
+        const job = await query<any>(`SELECT recruiter_id FROM job_posts WHERE id = $1`, [id]);
+        if (job.length === 0) {
+            return res.status(404).json({ error: 'Job not found' });
+        }
+        if (recruiterId && String(job[0].recruiter_id) !== String(recruiterId)) {
+            return res.status(403).json({ error: 'Not authorized to update this job' });
+        }
+
+        await query(
+            `UPDATE job_posts SET is_active = false, vacancies_filled = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+            [id]
+        );
+
+        res.json({ success: true, message: 'Vacancies marked as filled. Job hidden from candidates.' });
+    } catch (error) {
+        console.error('Mark job filled error:', error);
+        res.status(500).json({ error: 'Failed to mark job as filled' });
+    }
+});
+
 // Get job applicants
 router.get('/:id/applicants', async (req, res) => {
     try {

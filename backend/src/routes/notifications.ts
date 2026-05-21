@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db';
 import { sendPushNotification, sendBulkNotifications } from '../services/notificationService';
+import { requireAdmin } from '../middleware/adminAuth';
 
 const router = Router();
 
@@ -91,7 +92,7 @@ router.post('/test', async (req, res) => {
  * POST /api/notifications/broadcast
  * Body: { target: 'users' | 'recruiters' | 'all', title, body, data? }
  */
-router.post('/broadcast', async (req, res) => {
+router.post('/broadcast', requireAdmin, async (req, res) => {
     try {
         const { target, title, body, data } = req.body;
 

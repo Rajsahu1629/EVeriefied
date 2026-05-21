@@ -14,13 +14,13 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
     ArrowLeft, MapPin, Users, Clock, CheckCircle, Briefcase,
-    Calendar, Zap, Building2, Home, Award, Timer, XCircle, Edit2
+    Calendar, Zap, Building2, Home, Award, Timer, XCircle, Edit2, Ban
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { getRecruiterJobs } from '../lib/api';
+import { getRecruiterJobs, markJobFilledAsRecruiter } from '../lib/api';
 
 type PreviousJobsNavigationProp = StackNavigationProp<RootStackParamList, 'PreviousJobs'>;
 
@@ -42,6 +42,8 @@ interface JobPost {
     application_count?: number;
     training_role?: string;
     vehicle_category?: string;
+    is_active?: boolean;
+    vacancies_filled?: boolean;
 }
 
 const PreviousJobsScreen: React.FC = () => {
@@ -76,6 +78,29 @@ const PreviousJobsScreen: React.FC = () => {
     const onRefresh = () => {
         setRefreshing(true);
         loadJobs();
+    };
+
+    const handleMarkVacanciesFilled = (jobId: string, brand: string) => {
+        if (!recruiterData?.id) return;
+        Alert.alert(
+            'Vacancies filled?',
+            `"${brand}" will be hidden from all candidates. They will not be able to apply.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Hide from candidates',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await markJobFilledAsRecruiter(Number(jobId), recruiterData.id);
+                            loadJobs();
+                        } catch {
+                            Alert.alert('Error', 'Could not update job');
+                        }
+                    },
+                },
+            ]
+        );
     };
 
     const getStatusConfig = (status: string) => {
@@ -281,11 +306,21 @@ const PreviousJobsScreen: React.FC = () => {
                                     <View style={styles.footerMeta}>
                                         <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
                                             <Text style={[styles.statusText, { color: statusConfig.color }]}>
-                                                {statusConfig.text}
+                                                {job.is_active === false ? 'Filled / Hidden' : statusConfig.text}
                                             </Text>
                                         </View>
                                     </View>
                                 </View>
+
+                                {job.status === 'approved' && job.is_active !== false && (
+                                    <TouchableOpacity
+                                        style={styles.markFilledBtn}
+                                        onPress={() => handleMarkVacanciesFilled(job.id, job.brand)}
+                                    >
+                                        <Ban size={16} color="#fff" />
+                                        <Text style={styles.markFilledText}>Vacancies filled — hide from candidates</Text>
+                                    </TouchableOpacity>
+                                )}
 
                                 {/* Work Flow Tracker */}
                                 <View style={styles.workflowSection}>
@@ -523,6 +558,22 @@ const styles = StyleSheet.create({
     },
 
     // Footer
+    markFilledBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#b45309',
+        marginTop: spacing.md,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.lg,
+    },
+    markFilledText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: fontSize.sm,
+    },
     cardFooter: {
         flexDirection: 'row',
         alignItems: 'center',

@@ -90,8 +90,8 @@ const PostJobScreen: React.FC = () => {
     const roles = [
         { label: t('evTechnician'), value: 'technician' },
         { label: t('bs6Technician'), value: 'bs6_technician' },
-        { label: t('showroomManager'), value: 'sales' },
-        { label: t('workshopManager'), value: 'workshop' },
+        { label: t('showroom'), value: 'sales' },
+        { label: t('workshopFleet'), value: 'workshop' },
         { label: t('fresher'), value: 'fresher' },
     ];
 

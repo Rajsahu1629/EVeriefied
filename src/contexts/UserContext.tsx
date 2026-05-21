@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUser } from '../lib/api';
+import { clearAdminToken } from '../lib/adminAuth';
 import { useNotifications, cleanupPushToken } from '../hooks/useNotifications';
 
 export type UserRole = 'technician' | 'sales' | 'workshop' | 'aspirant';
@@ -50,6 +51,8 @@ export interface RecruiterData {
 interface UserContextType {
     selectedRole: UserRole | 'recruiter' | null;
     setSelectedRole: (role: UserRole | 'recruiter' | null) => void;
+    selectedSubRole: string | null;
+    setSelectedSubRole: (subRole: string | null) => void;
     selectedDomain: 'EV' | 'BS6' | null;
     setSelectedDomain: (domain: 'EV' | 'BS6' | null) => void;
     userData: UserData | null;
@@ -76,6 +79,7 @@ const IS_RECRUITER_LOGGED_IN_KEY = 'everified_is_recruiter_logged_in';
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [selectedRole, setSelectedRole] = useState<UserRole | 'recruiter' | null>(null);
+    const [selectedSubRole, setSelectedSubRole] = useState<string | null>(null);
     const [selectedDomain, setSelectedDomain] = useState<'EV' | 'BS6' | null>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -153,6 +157,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUserData(null);
         setIsLoggedIn(false);
         setSelectedRole(null);
+        setSelectedSubRole(null);
+        await clearAdminToken();
         await AsyncStorage.removeItem(USER_DATA_KEY);
         await AsyncStorage.removeItem(IS_LOGGED_IN_KEY);
     };
@@ -165,6 +171,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setRecruiterData(null);
         setIsRecruiterLoggedIn(false);
         setSelectedRole(null);
+        await clearAdminToken();
         await AsyncStorage.removeItem(RECRUITER_DATA_KEY);
         await AsyncStorage.removeItem(IS_RECRUITER_LOGGED_IN_KEY);
     };
@@ -216,6 +223,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             value={{
                 selectedRole,
                 setSelectedRole,
+                selectedSubRole,
+                setSelectedSubRole,
                 selectedDomain,
                 setSelectedDomain,
                 userData,

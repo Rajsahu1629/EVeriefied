@@ -3,8 +3,10 @@
  * This replaces direct database calls with API requests
  */
 
-// For development, use localhost. For production, update this URL.
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { getApiBaseUrl } from './getApiBaseUrl';
+import { getAdminToken, setAdminToken, clearAdminToken } from './adminAuth';
+
+const API_BASE_URL = getApiBaseUrl();
 
 interface ApiResponse<T> {
     success?: boolean;
@@ -202,28 +204,91 @@ export async function getUserAppliedJobIds(userId: string | number) {
 
 // ============ ADMIN ============
 
+async function adminRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = await getAdminToken();
+    if (!token) {
+        throw new Error('Unauthorized admin access — please log in again as admin');
+    }
+    return request<T>(endpoint, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(options.headers as Record<string, string>),
+            Authorization: `Bearer ${token}`,
+        },
+    });
+}
+
+export async function adminLogin(phoneNumber: string, password: string) {
+    return request<{ success: boolean; token: string }>('/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({ phoneNumber, password }),
+    });
+}
+
+/**
+ * Try admin login (recruiter login screen only).
+ * Returns true only when credentials match admin — never throws on wrong password.
+ */
+export async function loginAsAdmin(phoneNumber: string, password: string): Promise<boolean> {
+    try {
+        const res = await adminLogin(phoneNumber.trim(), password);
+        if (res.success && res.token) {
+            await setAdminToken(res.token);
+            return true;
+        }
+    } catch {
+        // Not admin credentials — caller should continue with user/recruiter login
+    }
+    await clearAdminToken();
+    return false;
+}
+
 export async function getPendingJobs() {
-    return request<any[]>('/admin/jobs/pending');
+    return adminRequest<any[]>('/admin/jobs/pending');
 }
 
 export async function approveJob(jobId: number) {
-    return request<{ success: boolean; message: string }>(`/admin/jobs/${jobId}/approve`, {
+    return adminRequest<{ success: boolean; message: string }>(`/admin/jobs/${jobId}/approve`, {
         method: 'PUT',
     });
 }
 
 export async function rejectJob(jobId: number) {
-    return request<{ success: boolean; message: string }>(`/admin/jobs/${jobId}/reject`, {
+    return adminRequest<{ success: boolean; message: string }>(`/admin/jobs/${jobId}/reject`, {
         method: 'PUT',
     });
 }
 
+export async function getAdminActiveJobs() {
+    return adminRequest<any[]>('/admin/jobs/active');
+}
+
+export async function markJobVacanciesFilled(jobId: number) {
+    return adminRequest<{ success: boolean; message: string }>(`/admin/jobs/${jobId}/mark-filled`, {
+        method: 'PUT',
+    });
+}
+
+export async function reactivateJob(jobId: number) {
+    return adminRequest<{ success: boolean; message: string }>(`/admin/jobs/${jobId}/reactivate`, {
+        method: 'PUT',
+    });
+}
+
+export async function markJobFilledAsRecruiter(jobId: number, recruiterId: string | number) {
+    return request<{ success: boolean; message: string }>(`/jobs/${jobId}/mark-filled`, {
+        method: 'PUT',
+        body: JSON.stringify({ recruiterId }),
+    });
+}
+
 export async function getPendingUserVerifications() {
-    return request<any[]>('/admin/users/pending');
+    return adminRequest<any[]>('/admin/users/pending');
 }
 
 export async function verifyUser(userId: number, status: 'verified' | 'rejected') {
-    return request<{ success: boolean; message: string }>(`/admin/users/${userId}/verify`, {
+    return adminRequest<{ success: boolean; message: string }>(`/admin/users/${userId}/verify`, {
         method: 'PUT',
         body: JSON.stringify({ status }),
     });
@@ -243,7 +308,7 @@ export async function searchCandidates(filters: {
     if (filters.experience) params.append('experience', filters.experience);
     if (filters.role) params.append('role', filters.role);
 
-    return request<any[]>(`/admin/candidates/search?${params.toString()}`);
+    return adminRequest<any[]>(`/admin/candidates/search?${params.toString()}`);
 }
 
 // ============ QUIZ ============
@@ -295,12 +360,59 @@ export async function updateUserVerification(userId: string, data: {
 // ============ STATS ============
 
 export async function getAdminStats() {
-    return request<{
+    return adminRequest<{
         pendingJobs: number;
         totalCandidates: number;
         verifiedCandidates: number;
         totalRecruiters: number;
+        newApplications?: number;
+        filledJobs?: number;
     }>('/admin/stats');
+}
+
+export async function getAdminAnalytics() {
+    return adminRequest<{
+        byStatus: { status: string; count: number }[];
+        byJob: any[];
+        totals: {
+            total_applications: number;
+            total_hired: number;
+            awaiting_review: number;
+            conversionRate: number;
+        };
+    }>('/admin/analytics');
+}
+
+export async function getAdminApplications(filters?: {
+    status?: string;
+    jobId?: number;
+    dateFrom?: string;
+    dateTo?: string;
+}) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.jobId) params.append('jobId', String(filters.jobId));
+    if (filters?.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters?.dateTo) params.append('dateTo', filters.dateTo);
+    const qs = params.toString();
+    return adminRequest<any[]>(`/admin/applications${qs ? `?${qs}` : ''}`);
+}
+
+export async function updateApplicationStatus(
+    applicationId: number,
+    data: { status: string; rejectionReason?: string; adminNotes?: string }
+) {
+    return adminRequest<{ success: boolean; message: string }>(
+        `/admin/applications/${applicationId}/status`,
+        { method: 'PUT', body: JSON.stringify(data) }
+    );
+}
+
+export async function updateApplicationNotes(applicationId: number, adminNotes: string) {
+    return adminRequest<{ success: boolean; message: string }>(
+        `/admin/applications/${applicationId}/notes`,
+        { method: 'PUT', body: JSON.stringify({ adminNotes }) }
+    );
 }
 
 export async function getPlatformStats() {
@@ -314,17 +426,24 @@ export async function getPlatformStats() {
 // ============ ADMIN CARD ORDERS ============
 
 export async function getAllCardOrders() {
-    return request<any[]>('/admin/card-orders');
+    return adminRequest<any[]>('/admin/card-orders');
+}
+
+export async function updateCardFulfillment(userId: string, fulfillmentStatus: 'ordered' | 'fulfilled' | 'shipped') {
+    return adminRequest<{ success: boolean; message: string }>(
+        `/admin/card-orders/${userId}/fulfillment`,
+        { method: 'PUT', body: JSON.stringify({ fulfillmentStatus }) }
+    );
 }
 
 // ============ PUSH NOTIFICATIONS ============
 
 export async function getPendingVerificationUsers() {
-    return request<any[]>('/admin/users/pending-verification');
+    return adminRequest<any[]>('/admin/users/pending-verification');
 }
 
 export async function verifyUserByAdmin(userId: string) {
-    return request<{ success: boolean; message: string }>(`/admin/users/${userId}/admin-verify`, {
+    return adminRequest<{ success: boolean; message: string }>(`/admin/users/${userId}/admin-verify`, {
         method: 'PUT',
     });
 }
@@ -357,7 +476,7 @@ export async function broadcastNotification(
     title: string,
     body: string
 ) {
-    return request<{ success: boolean; message: string; sent: number; total: number }>(
+    return adminRequest<{ success: boolean; message: string; sent: number; total: number }>(
         '/notifications/broadcast',
         {
             method: 'POST',

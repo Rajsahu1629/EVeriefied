@@ -31,6 +31,13 @@ import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
 import { getApprovedJobs, getUserAppliedJobIds, applyToJob } from '../lib/api';
 import { useNavigation } from '@react-navigation/native';
 import { LanguageSelector } from '../components/LanguageSelector';
+import { useLanguage } from '../contexts/LanguageContext';
+import {
+    formatJobExperience,
+    formatJobSalary,
+    formatVacancyCount,
+    formatVehicleCategory,
+} from '../lib/jobDisplay';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -56,6 +63,7 @@ interface JobPost {
 
 export default function JobsScreen() {
     const { userData, logout } = useUser();
+    const { t } = useLanguage();
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
     const [jobs, setJobs] = useState<JobPost[]>([]);
@@ -76,9 +84,9 @@ export default function JobsScreen() {
             setFilteredJobs(result);
         } catch (error) {
             console.error('Error fetching jobs:', error);
-            Alert.alert('Error', 'Failed to load jobs. Please try again.');
+            Alert.alert(t('error'), t('failedToLoadJobs'));
         }
-    }, []);
+    }, [t]);
 
     // Fetch user's applied jobs
     const fetchAppliedJobs = useCallback(async () => {
@@ -112,7 +120,7 @@ export default function JobsScreen() {
     // Apply to job
     const handleApply = async (jobId: number) => {
         if (!userData?.id) {
-            Alert.alert('Error', 'Please login to apply for jobs');
+            Alert.alert(t('error'), t('loginToApply'));
             return;
         }
 
@@ -123,7 +131,7 @@ export default function JobsScreen() {
             setAppliedJobs(prev => new Set([...prev, jobId]));
         } catch (error) {
             console.error('Error applying to job:', error);
-            Alert.alert('Error', 'Failed to apply. Please try again.');
+            Alert.alert(t('error'), t('failedToApply'));
         } finally {
             setApplyingTo(null);
         }
@@ -163,35 +171,16 @@ export default function JobsScreen() {
         setFilteredJobs(filtered);
     }, [searchQuery, salaryFilter, jobs]);
 
-    // Format experience
-    const formatExperience = (exp: string): string => {
-        if (!exp) return '0-1 Years';
-        const lower = exp.toLowerCase();
-        if (lower === 'fresher' || lower === '0-1') return 'Fresher';
-        if (lower === '1-2') return '1+ Years';
-        if (lower === '2-5') return '2+ Years';
-        if (lower === '5+') return '5+ Years';
-        return exp + ' Years';
-    };
-
-    // Format salary
-    const formatSalary = (min: number | null, max: number | null): string => {
-        if (!min && !max) return 'Negotiable';
-        const formatK = (n: number) => n >= 1000 ? `₹${Math.round(n / 1000)}K` : `₹${n}`;
-        if (min && max) return `${formatK(min)} - ${formatK(max)}`;
-        if (min) return `${formatK(min)}+`;
-        return `Up to ${formatK(max!)}`;
-    };
 
     // Get role label
     const getRoleLabel = (role: string) => {
         switch (role) {
-            case 'technician': return 'EV Technician';
-            case 'bs6_technician': return 'BS6 Technician';
-            case 'sales': return 'Showroom Manager';
-            case 'workshop': return 'Workshop Manager';
-            case 'fresher': return 'Fresher';
-            default: return role || 'Professional';
+            case 'technician': return t('evTechnician');
+            case 'bs6_technician': return t('bs6Technician');
+            case 'sales': return t('evShowroomManager');
+            case 'workshop': return t('evWorkshopManager');
+            case 'fresher': return t('fresher');
+            default: return role || t('professional');
         }
     };
 
@@ -214,12 +203,12 @@ export default function JobsScreen() {
                 isApplied && styles.appliedJobCard
             ]}>
                 {/* Applied Badge */}
-                {isApplied && (
+                {isApplied ? (
                     <View style={styles.appliedBadgeTop}>
                         <CheckCircle size={14} color="#fff" />
-                        <Text style={styles.appliedBadgeText}>Applied</Text>
+                        <Text style={styles.appliedBadgeText}>{t('applied')}</Text>
                     </View>
-                )}
+                ) : null}
 
                 {/* Card Header - Similar to PreviousJobsScreen */}
                 <View style={[styles.cardHeader, isApplied && styles.blurredContent]}>
@@ -229,48 +218,50 @@ export default function JobsScreen() {
                     <View style={styles.headerInfo}>
                         <Text style={styles.roleTitle}>
                             {getRoleLabel(item.role_required)}
-                            {item.vehicle_category ? ` (${item.vehicle_category})` : ''}
+                            {item.vehicle_category
+                                ? ` (${formatVehicleCategory(item.vehicle_category, t)})`
+                                : null}
                         </Text>
-                        {item.training_role && (
+                        {item.training_role ? (
                             <Text style={styles.trainingRoleText}>
                                 {item.training_role}
                             </Text>
-                        )}
-                        <Text style={styles.brandText}>{item.brand || 'Company'}</Text>
+                        ) : null}
+                        <Text style={styles.brandText}>{item.brand || t('company')}</Text>
                     </View>
                 </View>
 
                 {/* Salary */}
                 <Text style={[styles.salaryText, isApplied && styles.blurredContent]}>
-                    {formatSalary(item.salary_min, item.salary_max)} per month
+                    {formatJobSalary(item.salary_min, item.salary_max, t)} {t('perMonth')}
                 </Text>
 
                 {/* Location */}
                 <View style={[styles.locationRow, isApplied && styles.blurredContent]}>
                     <MapPin size={16} color="#ef4444" />
                     <Text style={styles.locationText}>
-                        {item.city ? `${item.city} (${item.pincode})` : item.pincode || 'Location TBD'}
+                        {item.city ? `${item.city} (${item.pincode})` : item.pincode || t('locationTbd')}
                     </Text>
                 </View>
 
                 {/* Tags Row */}
                 <View style={[styles.tagsContainer, isApplied && styles.blurredContent]}>
-                    {isNew && (
+                    {isNew ? (
                         <View style={[styles.tagChip, styles.tagNew]}>
                             <Text style={styles.tagChipIcon}>⚡</Text>
-                            <Text style={[styles.tagChipText, { color: '#059669' }]}>New</Text>
+                            <Text style={[styles.tagChipText, { color: '#059669' }]}>{t('recentTag')}</Text>
                         </View>
-                    )}
+                    ) : null}
                     <View style={[styles.tagChip, styles.tagRegular]}>
                         <Text style={styles.tagChipIcon}>⏱</Text>
                         <Text style={styles.tagChipText}>
-                            {item.urgency === 'immediate' ? 'Urgent' : 'Regular'}
+                            {item.urgency === 'immediate' ? t('urgent') : t('regular')}
                         </Text>
                     </View>
                     <View style={[styles.tagChip, styles.tagVacancies]}>
                         <Users size={12} color="#ea580c" />
                         <Text style={[styles.tagChipText, { color: '#ea580c' }]}>
-                            {item.number_of_people || '1'} Vacancies
+                            {formatVacancyCount(item.number_of_people, t)}
                         </Text>
                     </View>
                 </View>
@@ -280,27 +271,27 @@ export default function JobsScreen() {
                     <View style={styles.experienceTag}>
                         <Building2 size={14} color="#ca8a04" />
                         <Text style={styles.experienceTagText}>
-                            {formatExperience(item.experience)}
+                            {formatJobExperience(item.experience, t)}
                         </Text>
                     </View>
-                    {item.vehicle_category && (
+                    {item.vehicle_category ? (
                         <View style={styles.vehicleCategoryTag}>
                             <Text style={styles.vehicleCategoryText}>
-                                🏍️ {item.vehicle_category === '2W' ? '2 Wheeler' : '3 Wheeler'}
+                                🏍️ {formatVehicleCategory(item.vehicle_category, t)}
                             </Text>
                         </View>
-                    )}
+                    ) : null}
                 </View>
 
                 {/* Job Description */}
-                {item.job_description && (
+                {item.job_description?.trim() ? (
                     <View style={[styles.jobDescriptionContainer, isApplied && styles.blurredContent]}>
-                        <Text style={styles.jobDescriptionLabel}>About the Role:</Text>
+                        <Text style={styles.jobDescriptionLabel}>{t('aboutTheRole')}</Text>
                         <Text style={styles.jobDescriptionText} numberOfLines={3}>
                             {item.job_description}
                         </Text>
                     </View>
-                )}
+                ) : null}
 
                 {/* Apply Button */}
                 <TouchableOpacity
@@ -316,11 +307,11 @@ export default function JobsScreen() {
                     ) : isApplied ? (
                         <>
                             <CheckCircle size={18} color="#fff" />
-                            <Text style={styles.applyButtonText}>Applied</Text>
+                            <Text style={styles.applyButtonText}>{t('applied')}</Text>
                         </>
                     ) : (
                         <>
-                            <Text style={styles.applyButtonText}>Apply Now</Text>
+                            <Text style={styles.applyButtonText}>{t('applyNow')}</Text>
                             <ChevronRight size={18} color="#fff" />
                         </>
                     )}
@@ -333,9 +324,9 @@ export default function JobsScreen() {
     const EmptyState = () => (
         <View style={styles.emptyState}>
             <Briefcase size={64} color={colors.muted} />
-            <Text style={styles.emptyTitle}>No Jobs Available</Text>
+            <Text style={styles.emptyTitle}>{t('noJobsAvailable')}</Text>
             <Text style={styles.emptySubtitle}>
-                Check back later for new opportunities
+                {t('noJobsAvailableDesc')}
             </Text>
         </View>
     );
@@ -352,12 +343,14 @@ export default function JobsScreen() {
                 <View style={styles.headerContent}>
                     <View>
                         <Text style={styles.welcomeText}>
-                            Welcome, {userData?.fullName?.split(' ')[0] || 'User'}!
+                            {t('welcomeUser', {
+                                name: userData?.fullName?.split(' ')[0] || t('user'),
+                            })}
                         </Text>
                         <Text style={styles.headerSubtitle}>
-                            {userData?.role === 'technician' ? 'EV Technician' :
-                                userData?.role === 'sales' ? 'EV Showroom Manager' :
-                                    userData?.role === 'workshop' ? 'EV Workshop Manager' : 'EV Professional'}
+                            {userData?.role === 'technician' ? t('evTechnician') :
+                                userData?.role === 'sales' ? t('evShowroomManager') :
+                                    userData?.role === 'workshop' ? t('evWorkshopManager') : t('evProfessional')}
                         </Text>
                     </View>
                     <View style={styles.headerActions}>
@@ -373,7 +366,7 @@ export default function JobsScreen() {
             <View style={styles.content}>
                 <View style={styles.sectionHeader}>
                     <Briefcase size={20} color={colors.foreground} />
-                    <Text style={styles.sectionTitle}>Apply for Jobs</Text>
+                    <Text style={styles.sectionTitle}>{t('applyForJobs')}</Text>
                 </View>
 
                 {/* Search Bar */}
@@ -381,23 +374,23 @@ export default function JobsScreen() {
                     <Search size={20} color={colors.muted} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Search by city (e.g. Delhi) or pincode..."
+                        placeholder={t('searchJobsPlaceholder')}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         placeholderTextColor={colors.muted}
                     />
-                    {searchQuery.length > 0 && (
+                    {searchQuery.length > 0 ? (
                         <TouchableOpacity onPress={() => setSearchQuery('')}>
                             <X size={20} color={colors.muted} />
                         </TouchableOpacity>
-                    )}
+                    ) : null}
                 </View>
 
                 {/* Salary Filter Chips */}
                 <View style={styles.filterRow}>
-                    <Text style={styles.filterLabel}>Salary:</Text>
+                    <Text style={styles.filterLabel}>{t('salaryFilterLabel')}</Text>
                     {[
-                        { label: 'All', value: null },
+                        { label: t('filterAll'), value: null },
                         { label: '₹10K+', value: 10000 },
                         { label: '₹15K+', value: 15000 },
                         { label: '₹20K+', value: 20000 },
@@ -421,7 +414,7 @@ export default function JobsScreen() {
                 {loading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={styles.loadingText}>Loading jobs...</Text>
+                        <Text style={styles.loadingText}>{t('loadingJobs')}</Text>
                     </View>
                 ) : (
                     <FlatList

@@ -9,7 +9,7 @@ import {
     TouchableWithoutFeedback
 } from 'react-native';
 import { Globe, Check } from 'lucide-react-native';
-import { useLanguage, languages } from '../contexts/LanguageContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
 
 interface LanguageSelectorProps {
@@ -21,10 +21,10 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     color = colors.primary,
     style
 }) => {
-    const { language, setLanguage } = useLanguage();
+    const { language, setLanguage, t, availableLanguages } = useLanguage();
     const [modalVisible, setModalVisible] = useState(false);
 
-    const activeLanguage = languages.find(l => l.code === language);
+    const activeLanguage = availableLanguages.find(l => l.code === language);
 
     const handleSelect = async (code: any) => {
         await setLanguage(code);
@@ -55,12 +55,12 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                         <TouchableWithoutFeedback>
                             <View style={styles.modalContent}>
                                 <View style={styles.modalHeader}>
-                                    <Text style={styles.modalTitle}>Select Language</Text>
-                                    <Text style={styles.modalSubtitle}>भाषा चुनें / ಭಾಷೆಯನ್ನು ಆರಿಸಿ</Text>
+                                    <Text style={styles.modalTitle}>{t('languageModalTitle')}</Text>
+                                    <Text style={styles.modalSubtitle}>{t('selectLanguageSubtitle')}</Text>
                                 </View>
 
                                 <FlatList
-                                    data={languages}
+                                    data={availableLanguages}
                                     keyExtractor={item => item.code}
                                     renderItem={({ item }) => (
                                         <TouchableOpacity

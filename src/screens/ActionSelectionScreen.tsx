@@ -65,7 +65,7 @@ const ActionSelectionScreen: React.FC = () => {
                                 <FileText size={24} color={colors.primaryForeground} />
                             </View>
                             <View style={styles.actionTextContainer}>
-                                <Text style={styles.actionTitle}>{t('applyForVerification')}</Text>
+                                <Text style={styles.actionTitle}>{t('makeYourProfile')}</Text>
                                 <Text style={styles.actionDesc}>{t('applyDesc')}</Text>
                             </View>
                             <ChevronRight size={20} color={colors.muted} />

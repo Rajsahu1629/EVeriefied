@@ -23,6 +23,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
 import { loginUser } from '../lib/api';
+import { clearAdminToken } from '../lib/adminAuth';
 
 type LoginNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -58,18 +59,8 @@ const LoginScreen: React.FC = () => {
 
         setIsLoading(true);
         try {
-            // Admin login check first
-            if (phoneNumber === '9473928468' && password === 'admin123@') {
-                console.log('Admin login successful!');
-                setIsLoading(false);
-                navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'AdminDashboard' }],
-                });
-                return;
-            }
-
-            // Call API for user login
+            // User login only — admin panel is opened from Recruiter Login
+            await clearAdminToken();
             const response = await loginUser(phoneNumber, password);
 
             if (!response.success || !response.user) {
@@ -114,7 +105,11 @@ const LoginScreen: React.FC = () => {
 
             if (rawMessage.toLowerCase().includes('not found') || rawMessage.toLowerCase().includes('not register')) {
                 userMessage = t('userNotRegistered');
-            } else if (rawMessage.toLowerCase().includes('password') || rawMessage.toLowerCase().includes('credential')) {
+            } else if (
+                rawMessage.toLowerCase().includes('password') ||
+                rawMessage.toLowerCase().includes('credential') ||
+                rawMessage.toLowerCase().includes('admin')
+            ) {
                 userMessage = t('invalidCredentials');
             } else if (rawMessage) {
                 userMessage = rawMessage; // Fallback to raw message if specific case not matched, but formatted nicely
