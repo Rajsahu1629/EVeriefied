@@ -27,6 +27,7 @@ import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import JobApplicantsScreen from '../screens/JobApplicantsScreen';
 import AdminCardOrdersScreen from '../screens/AdminCardOrdersScreen';
 import AdminApplicationsScreen from '../screens/AdminApplicationsScreen';
+import AdminVacancyApplicantsScreen from '../screens/AdminVacancyApplicantsScreen';
 import AdminPendingQuizScreen from '../screens/AdminPendingQuizScreen';
 import AdminAnalyticsScreen from '../screens/AdminAnalyticsScreen';
 import AdminActiveJobsScreen from '../screens/AdminActiveJobsScreen';
@@ -59,6 +60,13 @@ export type RootStackParamList = {
     JobApplicants: { jobId: number; jobTitle: string };
     AdminCardOrders: undefined;
     AdminApplications: undefined;
+    AdminVacancyApplicants: {
+        jobId: number;
+        brand: string;
+        roleRequired: string;
+        city: string;
+        companyName: string;
+    };
     AdminPendingQuiz: undefined;
     AdminAnalytics: undefined;
     AdminActiveJobs: undefined;
@@ -129,6 +137,7 @@ export const AppNavigator = () => {
                 <Stack.Screen name="JobApplicants" component={JobApplicantsScreen} />
                 <Stack.Screen name="AdminCardOrders" component={AdminCardOrdersScreen} />
                 <Stack.Screen name="AdminApplications" component={AdminApplicationsScreen} />
+                <Stack.Screen name="AdminVacancyApplicants" component={AdminVacancyApplicantsScreen} />
                 <Stack.Screen name="AdminPendingQuiz" component={AdminPendingQuizScreen} />
                 <Stack.Screen name="AdminAnalytics" component={AdminAnalyticsScreen} />
                 <Stack.Screen name="AdminActiveJobs" component={AdminActiveJobsScreen} />

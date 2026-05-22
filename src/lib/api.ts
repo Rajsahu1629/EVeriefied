@@ -383,6 +383,33 @@ export async function getAdminAnalytics() {
     }>('/admin/analytics');
 }
 
+export async function getAdminHiringOverview() {
+    return adminRequest<{
+        companies: {
+            recruiter_id: number;
+            company_name: string;
+            recruiter_phone: string;
+            job_count: number;
+            active_job_count: number;
+            total_applications: number;
+            needs_review: number;
+            jobs: {
+                id: number;
+                brand: string;
+                role_required: string;
+                city: string;
+                is_active: boolean;
+                vacancies_filled: boolean;
+                number_of_people: number;
+                hired_count: number;
+                application_count: number;
+                needs_review: number;
+                status_counts: Record<string, number>;
+            }[];
+        }[];
+    }>('/admin/hiring/overview');
+}
+
 export async function getAdminApplications(filters?: {
     status?: string;
     jobId?: number;
@@ -446,6 +473,32 @@ export async function verifyUserByAdmin(userId: string) {
     return adminRequest<{ success: boolean; message: string }>(`/admin/users/${userId}/admin-verify`, {
         method: 'PUT',
     });
+}
+
+export async function getAdminUserProfile(userId: string | number) {
+    return adminRequest<{
+        id: string;
+        fullName: string;
+        phoneNumber: string;
+        state: string;
+        city: string;
+        pincode?: string;
+        qualification: string;
+        experience: string;
+        currentWorkshop: string;
+        brandWorkshop?: string;
+        brands: string[];
+        role: string;
+        verificationStatus: string;
+        domain?: 'EV' | 'BS6';
+        vehicle_category?: string;
+        training_role?: string;
+        is_admin_verified?: boolean;
+        current_workshop?: string;
+        brand_workshop?: string;
+        prior_knowledge?: string;
+        current_salary?: string;
+    }>(`/admin/users/${userId}`);
 }
 
 // ============ PUSH NOTIFICATIONS ============

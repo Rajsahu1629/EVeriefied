@@ -259,8 +259,8 @@ export default function AdminDashboardScreen() {
                         <View style={[styles.gridIcon, { backgroundColor: '#ede9fe' }]}>
                             <FileText size={28} color="#7c3aed" />
                         </View>
-                        <Text style={styles.gridTitle}>Applications</Text>
-                        <Text style={styles.gridDesc}>{stats.newApplications} new</Text>
+                        <Text style={styles.gridTitle}>Hiring Hub</Text>
+                        <Text style={styles.gridDesc}>{stats.newApplications} new · by company</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -388,7 +388,7 @@ export default function AdminDashboardScreen() {
 
                         <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('AdminApplications')}>
                             <FileText size={22} color={colors.muted} />
-                            <Text style={styles.menuText}>Job Applications</Text>
+                            <Text style={styles.menuText}>Hiring Hub</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('AdminPendingQuiz')}>

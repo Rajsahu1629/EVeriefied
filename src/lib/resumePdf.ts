@@ -32,7 +32,7 @@ function getEverifiedLogoSvg(size = 48): string {
 function getEverifiedBrandFooterHtml(tagline: string): string {
     return `
   <div class="everified-brand">
-    ${getEverifiedLogoSvg(48)}
+    ${getEverifiedLogoSvg(36)}
     <div class="everified-text">
       <p class="everified-name">EVerified</p>
       <p class="everified-tagline">${escapeHtml(tagline)}</p>
@@ -236,49 +236,69 @@ export function buildResumeHtml(params: {
 <head>
   <meta charset="utf-8" />
   <style>
-    @page { size: A4 portrait; margin: 40px 44px 48px 44px; }
+    @page {
+      size: A4 portrait;
+      margin: 10mm 12mm;
+    }
     * {
       box-sizing: border-box;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
     body {
       font-family: Arial, Helvetica, 'Segoe UI', sans-serif;
       color: #1a1a1a;
-      margin: 0;
-      font-size: 11pt;
-      line-height: 1.45;
+      font-size: 9.5pt;
+      line-height: 1.28;
+    }
+    .resume-page {
+      max-height: 277mm;
+      overflow: hidden;
+      page-break-after: avoid;
+      page-break-inside: avoid;
+    }
+    .resume-page section,
+    .resume-page header,
+    .resume-page footer,
+    .resume-page hr {
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
 
-    .header { margin-bottom: 4px; }
+    .header { margin-bottom: 2px; }
     h1.name {
-      font-size: 22pt;
+      font-size: 17pt;
       font-weight: 700;
-      margin: 0 0 10px;
+      margin: 0 0 4px;
       color: #111;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
     }
     .contact-row {
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin: 4px 0;
-      font-size: 10.5pt;
+      gap: 5px;
+      margin: 2px 0;
+      font-size: 9pt;
       color: #333;
     }
-    .contact-icon { font-size: 11pt; }
+    .contact-icon { font-size: 9pt; }
     .divider {
       border: none;
       border-top: 1px solid #c5c5c5;
-      margin: 14px 0;
+      margin: 5px 0;
     }
 
     section { margin: 0; }
     h2.section-title {
-      font-size: 11pt;
+      font-size: 10pt;
       font-weight: 700;
       color: #111;
-      margin: 0 0 8px;
+      margin: 0 0 3px;
     }
     p.body-text {
       margin: 0;
@@ -286,7 +306,7 @@ export function buildResumeHtml(params: {
       color: #222;
     }
     .labeled-line {
-      margin: 0 0 6px;
+      margin: 0 0 2px;
       color: #222;
     }
     .labeled-line strong {
@@ -294,38 +314,38 @@ export function buildResumeHtml(params: {
       color: #111;
     }
     h3.sub-title {
-      font-size: 11pt;
+      font-size: 9.5pt;
       font-weight: 700;
-      margin: 10px 0 6px;
+      margin: 4px 0 2px;
       color: #111;
     }
     ul.bullet-list {
-      margin: 4px 0 0;
-      padding-left: 22px;
+      margin: 2px 0 0;
+      padding-left: 18px;
       color: #222;
     }
-    ul.bullet-list li { margin-bottom: 4px; }
+    ul.bullet-list li { margin-bottom: 1px; }
 
     .declaration-sign {
-      margin-top: 16px;
-      font-size: 10.5pt;
+      margin-top: 6px;
+      font-size: 9pt;
       color: #222;
     }
-    .sign-line { margin: 8px 0; }
+    .sign-line { margin: 3px 0; }
 
     .everified-brand {
-      margin-top: 32px;
-      padding-top: 8px;
+      margin-top: 10px;
+      padding-top: 4px;
       display: flex;
       flex-direction: row;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
     }
     .everified-brand > svg {
       display: block;
       flex-shrink: 0;
-      width: 48px;
-      height: 48px;
+      width: 36px;
+      height: 36px;
     }
     .everified-text {
       display: flex;
@@ -335,7 +355,7 @@ export function buildResumeHtml(params: {
     }
     .everified-name {
       font-family: Arial, Helvetica, 'Segoe UI', sans-serif;
-      font-size: 21pt;
+      font-size: 14pt;
       font-weight: 700;
       color: #000000;
       margin: 0;
@@ -344,16 +364,21 @@ export function buildResumeHtml(params: {
     }
     .everified-tagline {
       font-family: Arial, Helvetica, 'Segoe UI', sans-serif;
-      font-size: 10pt;
+      font-size: 8.5pt;
       font-weight: 400;
       color: #000000;
-      margin: 5px 0 0;
+      margin: 2px 0 0;
       padding: 0;
-      line-height: 1.3;
+      line-height: 1.2;
+    }
+    @media print {
+      body { overflow: hidden; }
+      .resume-page { max-height: 277mm; }
     }
   </style>
 </head>
 <body>
+  <div class="resume-page">
   <header class="header">
     <h1 class="name">${escapeHtml(user.fullName || '')}</h1>
     <div class="contact-row">
@@ -408,6 +433,7 @@ export function buildResumeHtml(params: {
   <footer>
     ${getEverifiedBrandFooterHtml(labels.resumeTagline)}
   </footer>
+  </div>
 </body>
 </html>`;
 }
@@ -475,7 +501,12 @@ export async function generateAndShareResumePdf(params: {
         return;
     }
 
-    const { uri } = await Print.printToFileAsync({ html });
+    // A4 at 72 PPI — one page; matches @page size in buildResumeHtml
+    const { uri } = await Print.printToFileAsync({
+        html,
+        width: 595,
+        height: 842,
+    });
 
     const safeName = (params.user.fullName || 'resume')
         .replace(/[^a-zA-Z0-9]/g, '_')
@@ -500,6 +531,99 @@ export async function generateAndShareResumePdf(params: {
         dialogTitle: 'Download EVerified Resume',
         UTI: 'com.adobe.pdf',
     });
+}
+
+/** English labels for admin resume downloads (no i18n context) */
+export const ADMIN_RESUME_LABELS: ResumeLabels = {
+    careerObjective: 'Career Objective',
+    workExperience: 'Work Experience',
+    qualification: 'Qualification',
+    technicalSkills: 'Technical Skills',
+    declaration: 'Declaration',
+    declarationText:
+        'I hereby declare that the above information is true to the best of my knowledge and belief.',
+    signature: 'Signature',
+    date: 'Date',
+    mobile: 'Mobile',
+    currentWorkshopLabel: 'Current Workshop/Company',
+    totalExperience: 'Total Experience',
+    brandsWorkedWith: 'Brands Worked With',
+    years: 'Years',
+    resumeTagline: 'Trusted Platform for EV & BS6 Workforce',
+    notApplicable: 'N/A',
+    fresher: 'Fresher',
+};
+
+export function mapApiProfileToUserData(profile: {
+    id: string | number;
+    fullName: string;
+    phoneNumber: string;
+    state?: string;
+    city?: string;
+    pincode?: string;
+    qualification?: string;
+    experience?: string;
+    currentWorkshop?: string;
+    brandWorkshop?: string;
+    brands?: string[] | string;
+    role: string;
+    verificationStatus?: string;
+    domain?: 'EV' | 'BS6';
+    vehicle_category?: string;
+    training_role?: string;
+    is_admin_verified?: boolean;
+    current_workshop?: string;
+    brand_workshop?: string;
+    prior_knowledge?: string;
+    current_salary?: string;
+}): UserData {
+    return {
+        id: String(profile.id),
+        fullName: profile.fullName,
+        phoneNumber: profile.phoneNumber,
+        state: profile.state || '',
+        city: profile.city || '',
+        pincode: profile.pincode,
+        qualification: profile.qualification || '',
+        experience: profile.experience || '',
+        currentWorkshop: profile.currentWorkshop || profile.current_workshop || '',
+        brandWorkshop: profile.brandWorkshop || profile.brand_workshop,
+        brands: (profile.brands as string[] | undefined) || [],
+        role: profile.role as UserData['role'],
+        verificationStatus: (profile.verificationStatus || 'pending') as UserData['verificationStatus'],
+        domain: profile.domain,
+        vehicle_category: profile.vehicle_category as UserData['vehicle_category'],
+        training_role: profile.training_role,
+        is_admin_verified: profile.is_admin_verified,
+        current_workshop: profile.current_workshop,
+        brand_workshop: profile.brand_workshop,
+        prior_knowledge: profile.prior_knowledge,
+        current_salary: profile.current_salary,
+    };
+}
+
+/** Role title on resume; optional job role from vacancy takes precedence when sensible */
+export function resolveResumeRoleTitle(user: UserData, jobRoleRequired?: string): string {
+    if (jobRoleRequired?.trim()) {
+        return jobRoleRequired.trim();
+    }
+    const role = (user.role || '').replace(/^Verified\s+/i, '');
+    if (role === 'technician' && user.domain === 'BS6') {
+        const category = user.vehicle_category ? ` (${user.vehicle_category})` : '';
+        return `BS6 Technician${category}`;
+    }
+    switch (role.toLowerCase()) {
+        case 'technician':
+            return 'EV Technician';
+        case 'sales':
+            return 'EV Showroom Manager';
+        case 'workshop':
+            return 'EV Workshop Manager';
+        case 'aspirant':
+            return 'EV Aspirant';
+        default:
+            return role || 'Professional';
+    }
 }
 
 export function buildResumeLabelsFromT(t: (key: string) => string): ResumeLabels {
