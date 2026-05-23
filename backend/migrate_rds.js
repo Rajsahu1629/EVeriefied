@@ -201,6 +201,51 @@ async function migrate() {
         await query('CREATE INDEX IF NOT EXISTS idx_applications_job ON job_applications(job_post_id)');
         console.log('✅ All indexes created');
 
+        // ── STEP 2b: Admin + app columns (safe to re-run) ──
+        console.log('\n📝 Applying schema extensions (admin, notifications, quiz)...');
+        await query(`
+            ALTER TABLE job_applications
+                ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
+                ADD COLUMN IF NOT EXISTS admin_notes TEXT,
+                ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMP;
+        `);
+        await query(`
+            ALTER TABLE job_posts
+                ADD COLUMN IF NOT EXISTS vacancies_filled BOOLEAN DEFAULT FALSE;
+        `);
+        await query(`
+            ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS card_ordered BOOLEAN DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS card_fulfillment_status VARCHAR(30) DEFAULT 'ordered',
+                ADD COLUMN IF NOT EXISTS current_salary VARCHAR(50),
+                ADD COLUMN IF NOT EXISTS push_token TEXT,
+                ADD COLUMN IF NOT EXISTS last_quiz_attempt TIMESTAMP;
+        `);
+        await query(`
+            UPDATE users SET card_fulfillment_status = 'ordered'
+            WHERE card_ordered = true
+              AND (card_fulfillment_status IS NULL OR card_fulfillment_status = '');
+        `);
+        await query(`
+            ALTER TABLE recruiters
+                ADD COLUMN IF NOT EXISTS full_address TEXT,
+                ADD COLUMN IF NOT EXISTS city VARCHAR(100),
+                ADD COLUMN IF NOT EXISTS state VARCHAR(100),
+                ADD COLUMN IF NOT EXISTS pincode VARCHAR(10),
+                ADD COLUMN IF NOT EXISTS push_token TEXT;
+        `);
+        await query(`
+            CREATE TABLE IF NOT EXISTS quiz_scores (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                score INTEGER NOT NULL DEFAULT 0,
+                played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        await query('CREATE INDEX IF NOT EXISTS idx_quiz_scores_user ON quiz_scores(user_id)');
+        await query('CREATE INDEX IF NOT EXISTS idx_quiz_scores_played ON quiz_scores(played_at)');
+        console.log('✅ Schema extensions applied');
+
         // ── STEP 3: Populate Questions ──
         console.log('\n📝 Populating verification questions...');
         await query('DELETE FROM verification_questions');

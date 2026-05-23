@@ -5,11 +5,24 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const { Pool } = require('pg');
 
+function poolConfig() {
+    const url = process.env.DATABASE_URL;
+    const isLocal =
+        url.includes('localhost') ||
+        url.includes('127.0.0.1') ||
+        process.env.DATABASE_SSL === 'false';
+    if (isLocal) {
+        return { connectionString: url };
+    }
+    // RDS / remote Postgres
+    return {
+        connectionString: url.replace(/\?.*$/, ''),
+        ssl: { rejectUnauthorized: false },
+    };
+}
+
 async function migrate() {
-    const pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
-    });
+    const pool = new Pool(poolConfig());
     const client = await pool.connect();
     try {
         console.log('Running admin_features migration...');
@@ -28,6 +41,7 @@ async function migrate() {
 
         await client.query(`
       ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS card_ordered BOOLEAN DEFAULT FALSE,
         ADD COLUMN IF NOT EXISTS card_fulfillment_status VARCHAR(30) DEFAULT 'ordered';
     `);
 
