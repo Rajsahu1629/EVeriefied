@@ -6,7 +6,8 @@
 import { getApiBaseUrl } from './getApiBaseUrl';
 import { getAdminToken, setAdminToken, clearAdminToken } from './adminAuth';
 
-const API_BASE_URL = getApiBaseUrl();
+/** Admin phone (digits only) — used to avoid misleading "recruiter not registered" after failed admin login */
+export const ADMIN_PHONE_DIGITS = '9473928468';
 
 interface ApiResponse<T> {
     success?: boolean;
@@ -18,7 +19,7 @@ async function request<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${getApiBaseUrl()}${endpoint}`;
 
     const config: RequestInit = {
         ...options,
@@ -30,15 +31,28 @@ async function request<T>(
 
     try {
         const response = await fetch(url, config);
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        const text = await response.text();
+
+        if (!contentType.includes('application/json')) {
+            throw new Error(
+                response.ok
+                    ? 'Server returned a non-JSON response'
+                    : `Server error (${response.status}). Is the API running at ${getApiBaseUrl()}?`
+            );
+        }
+
+        const data = JSON.parse(text) as ApiResponse<T> & T;
 
         if (!response.ok) {
             throw new Error(data.error || 'Request failed');
         }
 
-        return data;
+        return data as T;
     } catch (error) {
-        console.error(`API Error [${endpoint}]:`, error);
+        if (endpoint !== '/admin/login') {
+            console.error(`API Error [${endpoint}]:`, error);
+        }
         throw error;
     }
 }
@@ -230,9 +244,13 @@ export async function adminLogin(phoneNumber: string, password: string) {
  * Try admin login (recruiter login screen only).
  * Returns true only when credentials match admin — never throws on wrong password.
  */
+export function isAdminPhone(phoneNumber: string): boolean {
+    return phoneNumber.replace(/\D/g, '') === ADMIN_PHONE_DIGITS;
+}
+
 export async function loginAsAdmin(phoneNumber: string, password: string): Promise<boolean> {
     try {
-        const res = await adminLogin(phoneNumber.trim(), password);
+        const res = await adminLogin(phoneNumber.trim(), password.trim());
         if (res.success && res.token) {
             await setAdminToken(res.token);
             return true;

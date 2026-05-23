@@ -22,7 +22,7 @@ import { LanguageToggle } from '../components/LanguageToggle';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { loginRecruiter, loginAsAdmin } from '../lib/api';
+import { loginRecruiter, loginAsAdmin, isAdminPhone } from '../lib/api';
 import { clearAdminToken } from '../lib/adminAuth';
 
 type RecruiterLoginNavigationProp = StackNavigationProp<RootStackParamList, 'RecruiterLogin'>;
@@ -70,6 +70,16 @@ const RecruiterLoginScreen: React.FC = () => {
                     index: 0,
                     routes: [{ name: 'AdminDashboard' }],
                 });
+                return;
+            }
+
+            if (isAdminPhone(trimmedPhone)) {
+                await clearAdminToken();
+                Alert.alert(
+                    t('error'),
+                    'Admin login failed. Use password Rajsahu@2000 and ensure the backend is running (cd backend && npm run dev).'
+                );
+                setIsLoading(false);
                 return;
             }
 

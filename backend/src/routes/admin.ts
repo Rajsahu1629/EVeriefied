@@ -62,7 +62,11 @@ router.post('/login', async (req, res) => {
         const phone = String(phoneNumber || '').replace(/\D/g, '');
         const expectedPhone = creds.phone.replace(/\D/g, '');
 
-        if (phone !== expectedPhone || password !== creds.password) {
+        const passwordOk =
+            String(password || '') === creds.password ||
+            String(password || '').toLowerCase() === creds.password.toLowerCase();
+
+        if (phone !== expectedPhone || !passwordOk) {
             return res.status(401).json({ error: 'Invalid admin credentials' });
         }
 
