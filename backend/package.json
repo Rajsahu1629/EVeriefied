@@ -8,7 +8,9 @@
         "build": "tsc",
         "start": "node dist/index.js",
         "migrate": "node migrate_rds.js",
-        "migrate:admin": "node migrations/admin_features.js"
+        "migrate:schema": "node migrations/001_schema_extensions.js",
+        "migrate:admin": "node migrations/admin_features.js",
+        "migrate:all": "node migrate_rds.js && node migrations/001_schema_extensions.js"
     },
     "dependencies": {
         "@neondatabase/serverless": "^0.9.0",
