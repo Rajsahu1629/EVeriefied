@@ -138,8 +138,8 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: colors.primary,
-        paddingTop: spacing.xxl,
-        paddingBottom: spacing.xxl + spacing.lg,
+        paddingTop: spacing.xl,
+        paddingBottom: spacing.xl,
         paddingHorizontal: spacing.lg,
         alignItems: 'center',
     },
@@ -207,8 +207,9 @@ const styles = StyleSheet.create({
     roleItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: spacing.md,
-        borderRadius: borderRadius.xl,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.lg,
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.card,

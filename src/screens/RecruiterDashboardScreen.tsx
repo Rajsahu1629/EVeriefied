@@ -1,5 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
     View,
     Text,
@@ -9,9 +9,10 @@ import {
     ScrollView,
     Linking
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { PlusCircle, FileText, ChevronRight, LogOut, Users, Search, MessageCircle } from 'lucide-react-native';
+import { PlusCircle, FileText, ChevronRight, LogOut, Search, MessageCircle } from 'lucide-react-native';
+import { hiringHubTheme } from '../lib/hiringHubTheme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
@@ -22,7 +23,15 @@ type RecruiterDashboardNavigationProp = StackNavigationProp<RootStackParamList, 
 const RecruiterDashboardScreen: React.FC = () => {
     const navigation = useNavigation<RecruiterDashboardNavigationProp>();
     const { t } = useLanguage();
-    const { recruiterData, logoutRecruiter } = useUser();
+    const { recruiterData, isRecruiterLoggedIn, logoutRecruiter } = useUser();
+
+    useFocusEffect(
+        useCallback(() => {
+            if (!isRecruiterLoggedIn || !recruiterData?.id) {
+                navigation.replace('RecruiterLogin');
+            }
+        }, [isRecruiterLoggedIn, recruiterData?.id, navigation])
+    );
 
     const handleLogout = async () => {
         await logoutRecruiter();
@@ -77,6 +86,21 @@ const RecruiterDashboardScreen: React.FC = () => {
                     <View style={styles.actionTextContainer}>
                         <Text style={styles.actionTitle}>{t('previousJobPosts')}</Text>
                         <Text style={styles.actionDesc}>{t('previousJobPostsDesc')}</Text>
+                    </View>
+                    <ChevronRight size={24} color={colors.muted} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.actionCard}
+                    onPress={() => navigation.navigate('RecruiterHiringHub')}
+                    activeOpacity={0.7}
+                >
+                    <View style={[styles.actionIconWrapper, { backgroundColor: hiringHubTheme.iconBg }]}>
+                        <FileText size={32} color={hiringHubTheme.iconColor} />
+                    </View>
+                    <View style={styles.actionTextContainer}>
+                        <Text style={styles.actionTitle}>Hiring Hub</Text>
+                        <Text style={styles.actionDesc}>Your vacancies → applicants</Text>
                     </View>
                     <ChevronRight size={24} color={colors.muted} />
                 </TouchableOpacity>

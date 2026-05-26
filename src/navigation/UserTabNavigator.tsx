@@ -2,7 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Briefcase, FileText, BookOpen, Newspaper, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../lib/theme';
+import { colors, layout } from '../lib/theme';
 import { useLanguage } from '../contexts/LanguageContext';
 
 import IDCardScreen from '../screens/IDCardScreen';
@@ -23,9 +23,9 @@ export default function UserTabNavigator() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    height: 65 + insets.bottom,
-                    paddingTop: 10,
-                    paddingBottom: 10 + insets.bottom,
+                    height: layout.tabBarHeight + insets.bottom,
+                    paddingTop: 6,
+                    paddingBottom: 6 + insets.bottom,
                     backgroundColor: colors.background,
                     borderTopColor: colors.border,
                     elevation: 10,
@@ -37,9 +37,9 @@ export default function UserTabNavigator() {
                 tabBarActiveTintColor: colors.primary,
                 tabBarInactiveTintColor: colors.muted,
                 tabBarLabelStyle: {
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: '600',
-                    marginTop: 4,
+                    marginTop: 2,
                 },
             }}
         >

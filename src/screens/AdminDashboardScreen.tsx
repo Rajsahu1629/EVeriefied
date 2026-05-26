@@ -320,13 +320,13 @@ export default function AdminDashboardScreen() {
 
                     <TouchableOpacity
                         style={styles.gridCard}
-                        onPress={() => handleNavigation('RecruiterDashboard')}
+                        onPress={() => handleNavigation('RecruiterLogin')}
                     >
                         <View style={[styles.gridIcon, { backgroundColor: '#d1fae5' }]}>
                             <Briefcase size={28} color="#059669" />
                         </View>
                         <Text style={styles.gridTitle}>Recruiter</Text>
-                        <Text style={styles.gridDesc}>View Mode</Text>
+                        <Text style={styles.gridDesc}>Log in</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -387,7 +387,7 @@ export default function AdminDashboardScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('AdminApplications')}>
-                            <FileText size={22} color={colors.muted} />
+                            <FileText size={22} color="#7c3aed" />
                             <Text style={styles.menuText}>Hiring Hub</Text>
                         </TouchableOpacity>
 
@@ -417,9 +417,9 @@ export default function AdminDashboardScreen() {
                         </TouchableOpacity>
 
                         <Text style={styles.menuLabel}>TOOLS</Text>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('RecruiterDashboard')}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('RecruiterLogin')}>
                             <Briefcase size={22} color={colors.muted} />
-                            <Text style={styles.menuText}>Recruiter Mode</Text>
+                            <Text style={styles.menuText}>Recruiter login</Text>
                         </TouchableOpacity>
 
                     </ScrollView>
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: '#7c3aed', // Purple for admin
-        paddingVertical: spacing.lg,
+        paddingVertical: spacing.md,
         paddingHorizontal: spacing.lg,
         flexDirection: 'row',
         alignItems: 'center',
@@ -597,8 +597,8 @@ const styles = StyleSheet.create({
     gridCard: {
         width: '47%', // 2 per row with gap
         backgroundColor: colors.card,
-        padding: spacing.lg,
-        borderRadius: borderRadius.xl,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: colors.border,
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
     },
     gridTitle: {
         fontSize: fontSize.base,

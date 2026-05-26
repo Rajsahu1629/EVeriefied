@@ -376,7 +376,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: spacing.xs,
-        paddingVertical: spacing.sm,
+        minHeight: 40,
+        paddingVertical: 8,
         borderRadius: borderRadius.md,
     },
     rejectBtn: {

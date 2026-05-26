@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
+import { colors, spacing, borderRadius, fontSize, layout } from '../lib/theme';
+import { TabScreenHeader } from '../components/TabScreenHeader';
 import {
     Briefcase, MapPin, CheckCircle, Clock, Building2,
     Calendar, Users, Award, Home, Zap, Send, XCircle
@@ -284,13 +285,15 @@ export default function AppliedJobsScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
-                <Briefcase size={22} color="#fff" />
-                <Text style={styles.headerTitle}>{t('myApplications')}</Text>
-                <View style={styles.countBadge}>
-                    <Text style={styles.countText}>{applications.length}</Text>
-                </View>
-            </View>
+            <TabScreenHeader
+                title={t('myApplications')}
+                icon={<Briefcase size={20} color={colors.primaryForeground} />}
+                badge={
+                    <View style={styles.countBadge}>
+                        <Text style={styles.countText}>{applications.length}</Text>
+                    </View>
+                }
+            />
 
             {loading ? (
                 <View style={styles.loadingContainer}>
@@ -405,34 +408,23 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8fafc',
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        backgroundColor: '#1a9d6e',
-    },
-    headerTitle: {
-        flex: 1,
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
     countBadge: {
-        backgroundColor: 'rgba(255,255,255,0.25)',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.22)',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: borderRadius.full,
+        marginLeft: spacing.xs,
     },
     countText: {
         color: '#fff',
         fontWeight: '700',
-        fontSize: 14,
+        fontSize: fontSize.xs,
     },
     listContent: {
-        padding: spacing.md,
-        gap: spacing.md,
+        paddingHorizontal: layout.screenPaddingX,
+        paddingTop: layout.screenPaddingY,
+        paddingBottom: 88,
+        gap: layout.cardGap,
         flexGrow: 1,
     },
     loadingContainer: {
@@ -449,15 +441,15 @@ const styles = StyleSheet.create({
     // Job Card
     jobCard: {
         backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        padding: layout.cardPaddingLg,
         borderWidth: 1,
         borderColor: '#10b981',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
         position: 'relative',
     },
     appliedBadge: {
@@ -485,9 +477,9 @@ const styles = StyleSheet.create({
         paddingRight: 80, // Space for applied badge
     },
     iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
+        width: layout.avatarMd,
+        height: layout.avatarMd,
+        borderRadius: borderRadius.md,
         backgroundColor: 'rgba(26, 157, 110, 0.1)',
         alignItems: 'center',
         justifyContent: 'center',
@@ -497,7 +489,7 @@ const styles = StyleSheet.create({
         marginLeft: spacing.sm,
     },
     roleText: {
-        fontSize: 16,
+        fontSize: fontSize.base,
         fontWeight: '700',
         color: '#1e40af',
     },
@@ -623,16 +615,16 @@ const styles = StyleSheet.create({
     },
     // Workflow Tracker Styles (Copied & adapted)
     workflowSection: {
-        marginTop: spacing.md,
-        paddingTop: spacing.md,
+        marginTop: spacing.sm,
+        paddingTop: spacing.sm,
         borderTopWidth: 1,
         borderTopColor: '#f1f5f9',
     },
     workflowTitle: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '700',
         color: colors.muted,
-        marginBottom: 12,
+        marginBottom: 8,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },

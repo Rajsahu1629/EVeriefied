@@ -23,10 +23,15 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
 import {
     getAdminApplications,
+    getRecruiterApplications,
     updateApplicationStatus,
     updateApplicationNotes,
+    updateRecruiterApplicationStatus,
+    updateRecruiterApplicationNotes,
 } from '../lib/api';
 import { downloadAdminEmployeeResume } from '../lib/adminResumeDownload';
+import { downloadRecruiterApplicantResume } from '../lib/recruiterResumeDownload';
+import { hiringHubTheme } from '../lib/hiringHubTheme';
 
 interface AdminApplication {
     id: number;
@@ -88,9 +93,13 @@ export default function AdminVacancyApplicantsScreen() {
     const [saving, setSaving] = useState(false);
     const [pdfLoadingUserId, setPdfLoadingUserId] = useState<number | null>(null);
 
+    const isRecruiterScope = params.scope === 'recruiter' && params.recruiterId;
+
     const fetchApplications = useCallback(async () => {
         try {
-            const result = await getAdminApplications({ jobId: params.jobId });
+            const result = isRecruiterScope
+                ? await getRecruiterApplications(params.recruiterId!, { jobId: params.jobId })
+                : await getAdminApplications({ jobId: params.jobId });
             setApplications(result);
         } catch {
             Alert.alert('Error', 'Failed to load applicants for this vacancy.');
@@ -98,7 +107,7 @@ export default function AdminVacancyApplicantsScreen() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [params.jobId]);
+    }, [params.jobId, isRecruiterScope, params.recruiterId]);
 
     useEffect(() => {
         setLoading(true);
@@ -120,11 +129,16 @@ export default function AdminVacancyApplicantsScreen() {
         }
         setSaving(true);
         try {
-            await updateApplicationStatus(selectedApp.id, {
+            const payload = {
                 status: newStatus,
                 rejectionReason: newStatus === 'rejected' ? rejectionReason.trim() : undefined,
                 adminNotes: adminNotes.trim() || undefined,
-            });
+            };
+            if (isRecruiterScope) {
+                await updateRecruiterApplicationStatus(params.recruiterId!, selectedApp.id, payload);
+            } else {
+                await updateApplicationStatus(selectedApp.id, payload);
+            }
             setModalVisible(false);
             fetchApplications();
             Alert.alert('Updated', `Status set to ${newStatus}.`);
@@ -139,7 +153,11 @@ export default function AdminVacancyApplicantsScreen() {
         if (!selectedApp) return;
         setSaving(true);
         try {
-            await updateApplicationNotes(selectedApp.id, adminNotes.trim());
+            if (isRecruiterScope) {
+                await updateRecruiterApplicationNotes(params.recruiterId!, selectedApp.id, adminNotes.trim());
+            } else {
+                await updateApplicationNotes(selectedApp.id, adminNotes.trim());
+            }
             setModalVisible(false);
             fetchApplications();
         } catch {
@@ -161,12 +179,19 @@ export default function AdminVacancyApplicantsScreen() {
         }
         setPdfLoadingUserId(app.user_id);
         try {
-            await downloadAdminEmployeeResume(app.user_id, {
-                jobRoleRequired: params.roleRequired,
-                applicantName: app.applicant_name,
-            });
+            if (isRecruiterScope) {
+                await downloadRecruiterApplicantResume(params.recruiterId!, app.user_id, {
+                    jobRoleRequired: params.roleRequired,
+                    applicantName: app.applicant_name,
+                });
+            } else {
+                await downloadAdminEmployeeResume(app.user_id, {
+                    jobRoleRequired: params.roleRequired,
+                    applicantName: app.applicant_name,
+                });
+            }
         } catch (e: any) {
-            console.error('Admin resume PDF error:', e);
+            console.error('Resume PDF error:', e);
             Alert.alert('Error', e?.message || 'Could not generate resume PDF.');
         } finally {
             setPdfLoadingUserId(null);
@@ -378,22 +403,22 @@ const styles = StyleSheet.create({
     countBadge: { backgroundColor: '#f3e8ff', paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.full },
     countText: { color: '#7c3aed', fontWeight: '700', fontSize: fontSize.sm },
     jobBanner: {
-        backgroundColor: '#f3e8ff',
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
+        backgroundColor: hiringHubTheme.summaryBg,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
         borderBottomWidth: 1,
         borderBottomColor: '#e9d5ff',
     },
-    jobBrand: { fontSize: fontSize.lg, fontWeight: '700', color: '#5b21b6' },
-    jobRole: { fontSize: fontSize.sm, color: '#6d28d9', marginTop: 2 },
+    jobBrand: { fontSize: fontSize.base, fontWeight: '700', color: hiringHubTheme.headerTitle },
+    jobRole: { fontSize: fontSize.sm, color: hiringHubTheme.headerSub, marginTop: 2 },
     companyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.xs },
     companyName: { fontSize: fontSize.sm, color: colors.muted },
     listContent: { padding: spacing.md, flexGrow: 1 },
     card: {
         backgroundColor: colors.card,
         borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        marginBottom: spacing.md,
+        padding: spacing.sm,
+        marginBottom: spacing.sm,
         borderWidth: 1,
         borderColor: colors.border,
     },
@@ -415,7 +440,7 @@ const styles = StyleSheet.create({
     notesPreview: { fontSize: fontSize.xs, color: '#7c3aed', fontStyle: 'italic', marginBottom: spacing.xs },
     phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing.xs },
     phoneText: { fontSize: fontSize.sm, color: '#7c3aed', fontWeight: '600' },
-    actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+    actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
     pdfBtn: {
         flex: 1,
         flexDirection: 'row',
@@ -423,9 +448,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 6,
         backgroundColor: '#059669',
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.lg,
-        minHeight: 40,
+        paddingVertical: 8,
+        borderRadius: borderRadius.md,
+        minHeight: 36,
     },
     pdfBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSize.sm },
     pipelineBtn: {
@@ -435,11 +460,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 6,
         backgroundColor: '#f3e8ff',
-        paddingVertical: spacing.sm,
-        borderRadius: borderRadius.lg,
+        paddingVertical: 8,
+        borderRadius: borderRadius.md,
         borderWidth: 1,
         borderColor: '#e9d5ff',
-        minHeight: 40,
+        minHeight: 36,
     },
     pipelineBtnText: { color: '#7c3aed', fontWeight: '600', fontSize: fontSize.sm },
     btnDisabled: { opacity: 0.65 },
@@ -457,7 +482,7 @@ const styles = StyleSheet.create({
     emptyTitle: { fontSize: fontSize.lg, fontWeight: '600', marginTop: spacing.md },
     emptySub: { fontSize: fontSize.sm, color: colors.muted, marginTop: spacing.xs, textAlign: 'center' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, maxHeight: '85%' },
+    modalSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.md, maxHeight: '85%' },
     modalTitle: { fontSize: fontSize.xl, fontWeight: '700' },
     modalSub: { fontSize: fontSize.sm, color: colors.muted, marginBottom: spacing.md },
     inputLabel: { fontSize: fontSize.sm, fontWeight: '600', color: colors.muted, marginTop: spacing.sm, marginBottom: spacing.xs },
@@ -468,10 +493,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: spacing.md,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
         backgroundColor: '#f3e8ff',
-        borderRadius: borderRadius.lg,
+        borderRadius: borderRadius.md,
         marginBottom: spacing.xs,
+        minHeight: 40,
     },
     statusOptionDanger: { backgroundColor: '#fee2e2' },
     statusOptionText: { fontWeight: '600', textTransform: 'capitalize' },

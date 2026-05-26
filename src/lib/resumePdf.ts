@@ -209,6 +209,8 @@ export function buildResumeHtml(params: {
     const workshop = (user.currentWorkshop || user.current_workshop || '').trim() || labels.notApplicable;
     const brandWorkshop = (user.brandWorkshop || user.brand_workshop || '').trim();
     const trainingRole = (user.training_role || '').trim();
+    const showTrainingRoleLine =
+        Boolean(trainingRole) && trainingRole.toLowerCase() !== roleTitle.toLowerCase();
     const experience = formatExperienceYears(user.experience, labels);
     const brands = parseBrands(user);
     const qualification = formatQualification(user.qualification, labels);
@@ -274,9 +276,15 @@ export function buildResumeHtml(params: {
     h1.name {
       font-size: 17pt;
       font-weight: 700;
-      margin: 0 0 4px;
+      margin: 0 0 2px;
       color: #111;
       letter-spacing: 0.2px;
+    }
+    p.role-title {
+      font-size: 10.5pt;
+      font-weight: 600;
+      color: #333;
+      margin: 0 0 4px;
     }
     .contact-row {
       display: flex;
@@ -381,6 +389,7 @@ export function buildResumeHtml(params: {
   <div class="resume-page">
   <header class="header">
     <h1 class="name">${escapeHtml(user.fullName || '')}</h1>
+    <p class="role-title">${escapeHtml(roleTitle)}</p>
     <div class="contact-row">
       <span class="contact-icon">📞</span>
       <span><strong>${escapeHtml(labels.mobile)}:</strong> ${escapeHtml(phone)}</span>
@@ -402,7 +411,7 @@ export function buildResumeHtml(params: {
     <h2 class="section-title">${escapeHtml(labels.workExperience)}</h2>
     <p class="labeled-line"><strong>${escapeHtml(labels.currentWorkshopLabel)}:</strong> ${escapeHtml(workshop)}</p>
     ${brandWorkshop ? `<p class="labeled-line"><strong>Brand Workshop:</strong> ${escapeHtml(brandWorkshop)}</p>` : ''}
-    ${trainingRole ? `<p class="labeled-line"><strong>Role/Position:</strong> ${escapeHtml(trainingRole)}</p>` : ''}
+    ${showTrainingRoleLine ? `<p class="labeled-line"><strong>Role/Position:</strong> ${escapeHtml(trainingRole)}</p>` : ''}
     <p class="labeled-line"><strong>${escapeHtml(labels.totalExperience)}:</strong> ${escapeHtml(experience)}</p>
     <h3 class="sub-title">${escapeHtml(labels.brandsWorkedWith)}</h3>
     ${brandsHtml}
@@ -602,10 +611,14 @@ export function mapApiProfileToUserData(profile: {
     };
 }
 
-/** Role title on resume; optional job role from vacancy takes precedence when sensible */
+/** Role title on resume; onboarding selection (training_role) overrides generic role labels */
 export function resolveResumeRoleTitle(user: UserData, jobRoleRequired?: string): string {
     if (jobRoleRequired?.trim()) {
         return jobRoleRequired.trim();
+    }
+    const onboardingTitle = (user.training_role || '').trim();
+    if (onboardingTitle) {
+        return onboardingTitle;
     }
     const role = (user.role || '').replace(/^Verified\s+/i, '');
     if (role === 'technician' && user.domain === 'BS6') {

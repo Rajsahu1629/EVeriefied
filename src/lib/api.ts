@@ -442,6 +442,72 @@ export async function updateApplicationNotes(applicationId: number, adminNotes: 
     );
 }
 
+// ============ RECRUITER HIRING HUB ============
+
+export async function getRecruiterHiringOverview(recruiterId: string | number) {
+    return request<{
+        companies: {
+            recruiter_id: number;
+            company_name: string;
+            recruiter_phone: string;
+            job_count: number;
+            active_job_count: number;
+            total_applications: number;
+            needs_review: number;
+            jobs: {
+                id: number;
+                brand: string;
+                role_required: string;
+                city: string;
+                is_active: boolean;
+                vacancies_filled: boolean;
+                number_of_people: number;
+                hired_count: number;
+                application_count: number;
+                needs_review: number;
+                status_counts: Record<string, number>;
+            }[];
+        }[];
+    }>(`/jobs/recruiter/${recruiterId}/hiring/overview`);
+}
+
+export async function getRecruiterApplications(
+    recruiterId: string | number,
+    filters?: { status?: string; jobId?: number }
+) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.jobId) params.append('jobId', String(filters.jobId));
+    const qs = params.toString();
+    return request<any[]>(`/jobs/recruiter/${recruiterId}/applications${qs ? `?${qs}` : ''}`);
+}
+
+export async function updateRecruiterApplicationStatus(
+    recruiterId: string | number,
+    applicationId: number,
+    data: { status: string; rejectionReason?: string; adminNotes?: string }
+) {
+    return request<{ success: boolean; message: string }>(
+        `/jobs/recruiter/${recruiterId}/applications/${applicationId}/status`,
+        { method: 'PUT', body: JSON.stringify(data) }
+    );
+}
+
+export async function updateRecruiterApplicationNotes(
+    recruiterId: string | number,
+    applicationId: number,
+    adminNotes: string
+) {
+    return request<{ success: boolean; message: string }>(
+        `/jobs/recruiter/${recruiterId}/applications/${applicationId}/notes`,
+        { method: 'PUT', body: JSON.stringify({ adminNotes }) }
+    );
+}
+
+export async function getRecruiterApplicantProfile(recruiterId: string | number, userId: string | number) {
+    return request<any>(`/jobs/recruiter/${recruiterId}/users/${userId}/profile`);
+}
+
 export async function getPlatformStats() {
     return request<{
         totalUsers: number;

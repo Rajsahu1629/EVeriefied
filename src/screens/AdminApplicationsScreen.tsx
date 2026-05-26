@@ -26,21 +26,30 @@ import {
     ChevronDown,
     ChevronRight,
     Search,
-    MapPin,
     Users,
     Download,
 } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
+import { hiringHubTheme } from '../lib/hiringHubTheme';
+import { useUser } from '../contexts/UserContext';
 import {
     getAdminApplications,
     getAdminHiringOverview,
+    getRecruiterApplications,
+    getRecruiterHiringOverview,
     updateApplicationStatus,
     updateApplicationNotes,
+    updateRecruiterApplicationStatus,
+    updateRecruiterApplicationNotes,
 } from '../lib/api';
 import { downloadAdminEmployeeResume } from '../lib/adminResumeDownload';
+import { downloadRecruiterApplicantResume } from '../lib/recruiterResumeDownload';
+import type { HiringCompany } from '../types/hiringHub';
+
+type HiringHubRouteProp = RouteProp<RootStackParamList, 'AdminApplications' | 'RecruiterHiringHub'>;
 
 type ViewMode = 'company' | 'all';
 
@@ -59,31 +68,6 @@ interface AdminApplication {
     rejection_reason?: string;
     admin_notes?: string;
     job_post_id: number;
-}
-
-interface HiringJob {
-    id: number;
-    brand: string;
-    role_required: string;
-    city: string;
-    is_active: boolean;
-    vacancies_filled: boolean;
-    number_of_people: number;
-    hired_count: number;
-    application_count: number;
-    needs_review: number;
-    status_counts: Record<string, number>;
-}
-
-interface HiringCompany {
-    recruiter_id: number;
-    company_name: string;
-    recruiter_phone: string;
-    job_count: number;
-    active_job_count: number;
-    total_applications: number;
-    needs_review: number;
-    jobs: HiringJob[];
 }
 
 const STATUS_FILTERS = ['all', 'applied', 'viewed', 'shortlisted', 'interview', 'hired', 'rejected'] as const;
@@ -109,37 +93,15 @@ function statusColor(s: string) {
     }
 }
 
-function StatusPills({ counts }: { counts: Record<string, number> }) {
-    const entries = PIPELINE_STAGES
-        .map((s) => ({ status: s, count: counts[s] || 0 }))
-        .filter((e) => e.count > 0);
-
-    if (entries.length === 0) {
-        return <Text style={styles.noAppsText}>No applicants</Text>;
-    }
-
-    return (
-        <View style={styles.pillsRow}>
-            {entries.map(({ status, count }) => (
-                <View
-                    key={status}
-                    style={[styles.miniPill, { backgroundColor: statusColor(status) + '18' }]}
-                >
-                    <Text style={[styles.miniPillText, { color: statusColor(status) }]}>
-                        {count} {status}
-                    </Text>
-                </View>
-            ))}
-        </View>
-    );
-}
-
 export default function AdminApplicationsScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+    const route = useRoute<HiringHubRouteProp>();
+    const { recruiterData } = useUser();
+    const isRecruiterHub = route.name === 'RecruiterHiringHub';
+    const recruiterId = recruiterData?.id;
 
     const [viewMode, setViewMode] = useState<ViewMode>('company');
     const [companies, setCompanies] = useState<HiringCompany[]>([]);
-    const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
     const [searchQuery, setSearchQuery] = useState('');
 
     const [applications, setApplications] = useState<AdminApplication[]>([]);
@@ -156,22 +118,37 @@ export default function AdminApplicationsScreen() {
 
     const loadData = useCallback(async () => {
         try {
+            if (isRecruiterHub && !recruiterId) {
+                setCompanies([]);
+                setApplications([]);
+                return;
+            }
             if (viewMode === 'company') {
-                const overview = await getAdminHiringOverview();
-                setCompanies(overview.companies || []);
+                const overview = isRecruiterHub
+                    ? await getRecruiterHiringOverview(recruiterId!)
+                    : await getAdminHiringOverview();
+                const list = overview.companies || [];
+                setCompanies(list);
             } else {
                 const filters = statusFilter !== 'all' ? { status: statusFilter } : undefined;
-                const result = await getAdminApplications(filters);
+                const result = isRecruiterHub
+                    ? await getRecruiterApplications(recruiterId!, filters)
+                    : await getAdminApplications(filters);
                 setApplications(result);
             }
         } catch (error) {
             console.error('Error loading hiring data:', error);
-            Alert.alert('Error', 'Failed to load hiring data. Ensure you are logged in as admin.');
+            Alert.alert(
+                'Error',
+                isRecruiterHub
+                    ? 'Failed to load your hiring data.'
+                    : 'Failed to load hiring data. Ensure you are logged in as admin.'
+            );
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [viewMode, statusFilter]);
+    }, [viewMode, statusFilter, isRecruiterHub, recruiterId]);
 
     useEffect(() => {
         setLoading(true);
@@ -199,22 +176,11 @@ export default function AdminApplicationsScreen() {
             .filter(Boolean) as HiringCompany[];
     }, [companies, searchQuery]);
 
-    const toggleCompany = (id: number) => {
-        setExpandedIds((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
-    };
-
-    const openVacancy = (company: HiringCompany, job: HiringJob) => {
-        navigation.navigate('AdminVacancyApplicants', {
-            jobId: job.id,
-            brand: job.brand,
-            roleRequired: job.role_required,
-            city: job.city || '',
-            companyName: company.company_name,
+    const openCompany = (company: HiringCompany) => {
+        navigation.navigate('HiringHubCompany', {
+            company,
+            scope: isRecruiterHub ? 'recruiter' : 'admin',
+            recruiterId: isRecruiterHub && recruiterId ? Number(recruiterId) : undefined,
         });
     };
 
@@ -233,11 +199,16 @@ export default function AdminApplicationsScreen() {
         }
         setSaving(true);
         try {
-            await updateApplicationStatus(selectedApp.id, {
+            const payload = {
                 status: newStatus,
                 rejectionReason: newStatus === 'rejected' ? rejectionReason.trim() : undefined,
                 adminNotes: adminNotes.trim() || undefined,
-            });
+            };
+            if (isRecruiterHub && recruiterId) {
+                await updateRecruiterApplicationStatus(recruiterId, selectedApp.id, payload);
+            } else {
+                await updateApplicationStatus(selectedApp.id, payload);
+            }
             setModalVisible(false);
             loadData();
             Alert.alert('Updated', `Status set to ${newStatus}.`);
@@ -252,7 +223,11 @@ export default function AdminApplicationsScreen() {
         if (!selectedApp) return;
         setSaving(true);
         try {
-            await updateApplicationNotes(selectedApp.id, adminNotes.trim());
+            if (isRecruiterHub && recruiterId) {
+                await updateRecruiterApplicationNotes(recruiterId, selectedApp.id, adminNotes.trim());
+            } else {
+                await updateApplicationNotes(selectedApp.id, adminNotes.trim());
+            }
             setModalVisible(false);
             loadData();
         } catch {
@@ -274,10 +249,17 @@ export default function AdminApplicationsScreen() {
         }
         setPdfLoadingUserId(app.user_id);
         try {
-            await downloadAdminEmployeeResume(app.user_id, {
-                jobRoleRequired: app.role_required,
-                applicantName: app.applicant_name,
-            });
+            if (isRecruiterHub && recruiterId) {
+                await downloadRecruiterApplicantResume(recruiterId, app.user_id, {
+                    jobRoleRequired: app.role_required,
+                    applicantName: app.applicant_name,
+                });
+            } else {
+                await downloadAdminEmployeeResume(app.user_id, {
+                    jobRoleRequired: app.role_required,
+                    applicantName: app.applicant_name,
+                });
+            }
         } catch (e: any) {
             Alert.alert('Error', e?.message || 'Could not generate resume PDF.');
         } finally {
@@ -288,119 +270,33 @@ export default function AdminApplicationsScreen() {
     const totalVacancies = companies.reduce((s, c) => s + c.job_count, 0);
     const totalApplicants = companies.reduce((s, c) => s + c.total_applications, 0);
 
-    const renderVacancyRow = (company: HiringCompany, job: HiringJob) => (
+    const renderCompany = ({ item: company }: { item: HiringCompany }) => (
         <TouchableOpacity
-            key={job.id}
-            style={styles.vacancyRow}
-            onPress={() => openVacancy(company, job)}
-            activeOpacity={0.8}
+            style={styles.companyCard}
+            onPress={() => openCompany(company)}
+            activeOpacity={0.85}
         >
-            <View style={styles.vacancyLeft}>
-                <Text style={styles.vacancyTitle} numberOfLines={1}>
-                    {job.brand} · {job.role_required}
-                </Text>
-                <View style={styles.vacancyMetaRow}>
-                    <MapPin size={12} color={colors.muted} />
-                    <Text style={styles.vacancyMeta}>{job.city || '—'}</Text>
-                    {!job.is_active || job.vacancies_filled ? (
-                        <View style={styles.filledTag}>
-                            <Text style={styles.filledTagText}>Filled / hidden</Text>
-                        </View>
-                    ) : (
-                        <Text style={styles.vacancyMeta}>
-                            · {job.hired_count}/{job.number_of_people || '—'} hired
-                        </Text>
-                    )}
-                </View>
-                <StatusPills counts={job.status_counts} />
+            <View style={styles.companyIcon}>
+                <Building2 size={22} color="#7c3aed" />
             </View>
-            <View style={styles.vacancyRight}>
-                <View style={[styles.appCountCircle, job.application_count === 0 && styles.appCountMuted]}>
-                    <Text style={styles.appCountNum}>{job.application_count}</Text>
-                </View>
-                {job.needs_review > 0 && (
-                    <View style={styles.newDot}>
-                        <Text style={styles.newDotText}>{job.needs_review} new</Text>
+            <View style={styles.companyInfo}>
+                <Text style={styles.companyName}>{company.company_name}</Text>
+                <Text style={styles.companyStats}>
+                    {company.job_count} {company.job_count === 1 ? 'vacancy' : 'vacancies'}
+                    {' · '}
+                    {company.total_applications} applicant{company.total_applications !== 1 ? 's' : ''}
+                </Text>
+            </View>
+            <View style={styles.companyBadges}>
+                {company.needs_review > 0 && (
+                    <View style={styles.reviewBadge}>
+                        <Text style={styles.reviewBadgeText}>{company.needs_review}</Text>
                     </View>
                 )}
-                <ChevronRight size={20} color="#7c3aed" />
+                <ChevronRight size={22} color={colors.muted} />
             </View>
         </TouchableOpacity>
     );
-
-    const renderCompany = ({ item: company }: { item: HiringCompany }) => {
-        const expanded = expandedIds.has(company.recruiter_id);
-        const jobsWithApps = company.jobs.filter((j) => j.application_count > 0);
-        const displayJobs = expanded ? company.jobs : jobsWithApps.slice(0, 3);
-        const hiddenCount = company.jobs.length - displayJobs.length;
-
-        return (
-            <View style={styles.companyCard}>
-                <TouchableOpacity
-                    style={styles.companyHeader}
-                    onPress={() => toggleCompany(company.recruiter_id)}
-                    activeOpacity={0.85}
-                >
-                    <View style={styles.companyIcon}>
-                        <Building2 size={22} color="#7c3aed" />
-                    </View>
-                    <View style={styles.companyInfo}>
-                        <Text style={styles.companyName}>{company.company_name}</Text>
-                        <Text style={styles.companyStats}>
-                            {company.job_count} {company.job_count === 1 ? 'vacancy' : 'vacancies'}
-                            {' · '}
-                            {company.total_applications} applicant{company.total_applications !== 1 ? 's' : ''}
-                        </Text>
-                    </View>
-                    <View style={styles.companyBadges}>
-                        {company.needs_review > 0 && (
-                            <View style={styles.reviewBadge}>
-                                <Text style={styles.reviewBadgeText}>{company.needs_review}</Text>
-                            </View>
-                        )}
-                        <ChevronDown
-                            size={22}
-                            color={colors.muted}
-                            style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}
-                        />
-                    </View>
-                </TouchableOpacity>
-
-                {expanded && (
-                    <TouchableOpacity
-                        style={styles.recruiterPhoneRow}
-                        onPress={() => callPhone(company.recruiter_phone)}
-                    >
-                        <Phone size={14} color="#7c3aed" />
-                        <Text style={styles.recruiterPhone}>{company.recruiter_phone || '—'}</Text>
-                    </TouchableOpacity>
-                )}
-
-                {(expanded || jobsWithApps.length > 0) && (
-                    <View style={styles.vacancyList}>
-                        {displayJobs.map((job) => renderVacancyRow(company, job))}
-                        {!expanded && hiddenCount > 0 && (
-                            <TouchableOpacity
-                                style={styles.showMoreBtn}
-                                onPress={() => toggleCompany(company.recruiter_id)}
-                            >
-                                <Text style={styles.showMoreText}>
-                                    +{hiddenCount} more {hiddenCount === 1 ? 'vacancy' : 'vacancies'}
-                                </Text>
-                            </TouchableOpacity>
-                        )}
-                        {expanded && company.jobs.length === 0 && (
-                            <Text style={styles.noVacancies}>No approved vacancies</Text>
-                        )}
-                    </View>
-                )}
-
-                {!expanded && jobsWithApps.length === 0 && (
-                    <Text style={styles.noAppsCompany}>No applications yet across vacancies</Text>
-                )}
-            </View>
-        );
-    };
 
     const renderApplication = ({ item }: { item: AdminApplication }) => {
         const pdfLoading = pdfLoadingUserId === item.user_id;
@@ -501,7 +397,7 @@ export default function AdminApplicationsScreen() {
 
             {viewMode === 'company' && (
                 <Text style={styles.hintText}>
-                    Tap a company to expand. Tap a vacancy to see everyone who applied and move them through hiring.
+                    Tap a company to see its vacancies. Tap a vacancy to view applicants and update hiring status.
                 </Text>
             )}
 
@@ -551,16 +447,24 @@ export default function AdminApplicationsScreen() {
             <StatusBar barStyle="dark-content" />
             <View style={styles.header}>
                 <TouchableOpacity
-                    onPress={() =>
-                        navigation.canGoBack() ? navigation.goBack() : navigation.navigate('AdminDashboard')
-                    }
+                    onPress={() => {
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else if (isRecruiterHub) {
+                            navigation.navigate('RecruiterDashboard');
+                        } else {
+                            navigation.navigate('AdminDashboard');
+                        }
+                    }}
                     style={styles.backBtn}
                 >
-                    <ArrowLeft size={24} color={colors.foreground} />
+                    <ArrowLeft size={24} color={hiringHubTheme.headerTitle} />
                 </TouchableOpacity>
                 <View style={styles.headerCenter}>
                     <Text style={styles.headerTitle}>Hiring Hub</Text>
-                    <Text style={styles.headerSub}>Company → vacancy → applicants</Text>
+                    <Text style={styles.headerSub}>
+                        {isRecruiterHub ? 'Your vacancies → applicants' : 'Company → vacancy → applicants'}
+                    </Text>
                 </View>
             </View>
 
@@ -697,13 +601,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-        backgroundColor: '#faf5ff',
+        borderBottomColor: '#e9d5ff',
+        backgroundColor: hiringHubTheme.headerBg,
     },
     backBtn: { padding: spacing.xs },
     headerCenter: { flex: 1, marginLeft: spacing.sm },
-    headerTitle: { fontSize: fontSize.lg, fontWeight: '700', color: '#5b21b6' },
-    headerSub: { fontSize: fontSize.xs, color: '#7c3aed', marginTop: 2 },
+    headerTitle: { fontSize: fontSize.lg, fontWeight: '700', color: hiringHubTheme.headerTitle },
+    headerSub: { fontSize: fontSize.xs, color: hiringHubTheme.headerSub, marginTop: 2 },
     searchWrap: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -729,19 +633,19 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
     },
-    modeBtnActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+    modeBtnActive: { backgroundColor: hiringHubTheme.activeBtn, borderColor: hiringHubTheme.activeBtn },
     modeBtnText: { fontSize: fontSize.sm, fontWeight: '600', color: colors.muted },
     modeBtnTextActive: { color: '#fff' },
     summaryBar: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.sm,
-        backgroundColor: '#f3e8ff',
+        backgroundColor: hiringHubTheme.summaryBg,
         padding: spacing.sm,
         borderRadius: borderRadius.md,
         marginBottom: spacing.sm,
     },
-    summaryText: { fontSize: fontSize.sm, color: '#5b21b6', fontWeight: '600', flex: 1 },
+    summaryText: { fontSize: fontSize.sm, color: hiringHubTheme.summaryText, fontWeight: '600', flex: 1 },
     hintText: {
         fontSize: fontSize.xs,
         color: colors.muted,
@@ -757,21 +661,18 @@ const styles = StyleSheet.create({
         backgroundColor: colors.secondary,
         marginRight: spacing.xs,
     },
-    filterChipActive: { backgroundColor: '#7c3aed' },
+    filterChipActive: { backgroundColor: hiringHubTheme.activeBtn },
     filterText: { fontSize: fontSize.sm, color: colors.muted, textTransform: 'capitalize' },
     filterTextActive: { color: '#fff', fontWeight: '600' },
     listContent: { padding: spacing.md, paddingBottom: spacing.xxl },
     companyCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor: colors.card,
         borderRadius: borderRadius.xl,
         marginBottom: spacing.md,
         borderWidth: 1,
         borderColor: colors.border,
-        overflow: 'hidden',
-    },
-    companyHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
         padding: spacing.md,
         gap: spacing.sm,
     },
@@ -779,7 +680,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#f3e8ff',
+        backgroundColor: hiringHubTheme.companyIconBg,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -797,61 +698,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
     },
     reviewBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-    recruiterPhoneRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: spacing.md,
-        paddingBottom: spacing.sm,
-        marginTop: -spacing.xs,
-    },
-    recruiterPhone: { fontSize: fontSize.sm, color: '#7c3aed', fontWeight: '600' },
-    vacancyList: {
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
-        backgroundColor: '#fafafa',
-    },
-    vacancyRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    vacancyLeft: { flex: 1, paddingRight: spacing.sm },
-    vacancyTitle: { fontSize: fontSize.sm, fontWeight: '700', color: colors.foreground },
-    vacancyMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, flexWrap: 'wrap' },
-    vacancyMeta: { fontSize: fontSize.xs, color: colors.muted },
-    filledTag: {
-        backgroundColor: '#fef3c7',
-        paddingHorizontal: 6,
-        paddingVertical: 1,
-        borderRadius: 4,
-        marginLeft: 4,
-    },
-    filledTagText: { fontSize: 10, color: '#b45309', fontWeight: '600' },
-    pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: spacing.xs },
-    miniPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: borderRadius.full },
-    miniPillText: { fontSize: 10, fontWeight: '600', textTransform: 'capitalize' },
-    noAppsText: { fontSize: fontSize.xs, color: colors.muted, marginTop: spacing.xs, fontStyle: 'italic' },
-    vacancyRight: { alignItems: 'center', gap: 4 },
-    appCountCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#7c3aed',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    appCountMuted: { backgroundColor: colors.border },
-    appCountNum: { color: '#fff', fontWeight: '800', fontSize: fontSize.base },
-    newDot: { backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-    newDotText: { fontSize: 9, color: '#ef4444', fontWeight: '700' },
-    showMoreBtn: { padding: spacing.md, alignItems: 'center' },
-    showMoreText: { color: '#7c3aed', fontWeight: '600', fontSize: fontSize.sm },
-    noVacancies: { padding: spacing.md, color: colors.muted, fontSize: fontSize.sm },
-    noAppsCompany: { padding: spacing.md, fontSize: fontSize.sm, color: colors.muted, fontStyle: 'italic' },
     card: {
         backgroundColor: colors.card,
         borderRadius: borderRadius.lg,

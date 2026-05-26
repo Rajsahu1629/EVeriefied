@@ -339,7 +339,7 @@ const VerificationFormScreen: React.FC = () => {
                 currentSalary: selectedRole === 'aspirant' ? '0' : formData.currentSalary,
                 domain: formData.domain,
                 vehicleCategory: formData.vehicleCategory || undefined,
-                trainingRole: formData.trainingRole || undefined,
+                trainingRole: formData.trainingRole || selectedSubRole || undefined,
             };
 
             await registerUser(registrationData);

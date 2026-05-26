@@ -16,6 +16,8 @@
   "showroomManager": "शोरूम मैनेजर",
   "workshopManager": "वर्कशॉप मैनेजर",
   "recruiter": "रिक्रूटर",
+  "asmAreaServiceManager": "ASM एरिया सर्विस मैनेजर",
+  "asmAreaServiceManagerDesc": "निर्धारित क्षेत्रों में सर्विस संचालन का प्रबंधन",
   "bs6Technician": "BS6 तकनीशियन",
   "bs6TechnicianDesc": "BS6 वाहनों का रखरखाव (2W/3W)",
   "evAspirant": "EV/BS6 फ्रेशर",

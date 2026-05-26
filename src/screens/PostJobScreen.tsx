@@ -1,5 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -11,9 +11,9 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, MapPin } from 'lucide-react-native';
+import { ArrowLeft, MapPin, CheckCircle } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
@@ -41,12 +41,29 @@ const PostJobScreen: React.FC = () => {
     const existingJob = params?.jobData;
 
     const { t } = useLanguage();
-    const { recruiterData } = useUser();
+    const { recruiterData, isRecruiterLoggedIn } = useUser();
+
+    const recruiterIdNum = recruiterData?.id ? parseInt(recruiterData.id, 10) : 0;
+
+    useFocusEffect(
+        useCallback(() => {
+            if (!isEditMode && (!isRecruiterLoggedIn || !recruiterIdNum)) {
+                Alert.alert(
+                    'Recruiter login required',
+                    'Please log in with your recruiter account before posting a job.',
+                    [{ text: 'OK', onPress: () => navigation.replace('RecruiterLogin') }]
+                );
+            }
+        }, [isEditMode, isRecruiterLoggedIn, recruiterIdNum, navigation])
+    );
 
 
 
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [successTitle, setSuccessTitle] = useState('');
+    const [successSubtitle, setSuccessSubtitle] = useState('');
 
     const [formData, setFormData] = useState({
         brand: existingJob?.brand === 'Other' ? 'Other' : (existingJob?.brand || ''),
@@ -178,6 +195,15 @@ const PostJobScreen: React.FC = () => {
     const handleSubmit = async () => {
         if (!validateStep2()) return;
 
+        if (!isEditMode && (!isRecruiterLoggedIn || !recruiterIdNum)) {
+            Alert.alert(
+                'Recruiter login required',
+                'Please log in with your recruiter account before posting a job.',
+                [{ text: 'OK', onPress: () => navigation.replace('RecruiterLogin') }]
+            );
+            return;
+        }
+
         setIsLoading(true);
         try {
             const brandValue = formData.brand === 'Other' ? formData.otherBrand : formData.brand;
@@ -199,17 +225,24 @@ const PostJobScreen: React.FC = () => {
                 trainingRole: formData.trainingRole || null,
             };
 
+            const title = isEditMode ? 'Job updated' : t('jobPostCreated');
+            const subtitle = isEditMode
+                ? 'Your changes have been saved.'
+                : 'Your job is pending admin approval. You can track it under Previous Job Posts.';
+
             if (isEditMode && existingJob?.id) {
-                // UPDATE via API
                 await updateJob(existingJob.id, jobData);
-                Alert.alert('Success', 'Job Post Updated Successfully!', [
-                    { text: 'OK', onPress: () => navigation.goBack() }
-                ]);
             } else {
-                // INSERT via API
-                await createJob(parseInt(recruiterData?.id || '0'), jobData);
-                Alert.alert(t('jobPostCreated'), '', [
-                    { text: 'OK', onPress: () => navigation.goBack() }
+                await createJob(recruiterIdNum, jobData);
+            }
+
+            setSuccessTitle(title);
+            setSuccessSubtitle(subtitle);
+            setSubmitSuccess(true);
+
+            if (Platform.OS !== 'web') {
+                Alert.alert(title, subtitle, [
+                    { text: 'OK', onPress: () => navigation.navigate('RecruiterDashboard') },
                 ]);
             }
         } catch (error) {
@@ -218,6 +251,14 @@ const PostJobScreen: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const goToDashboard = () => {
+        navigation.navigate('RecruiterDashboard');
+    };
+
+    const goToPreviousJobs = () => {
+        navigation.navigate('PreviousJobs');
     };
 
 
@@ -406,11 +447,38 @@ const PostJobScreen: React.FC = () => {
                 value={formData.jobDescription}
                 onChangeText={(v) => updateField('jobDescription', v)}
                 multiline
-                numberOfLines={4}
-                style={{ height: 100, textAlignVertical: 'top' }}
+                numberOfLines={6}
             />
         </>
     );
+
+    if (submitSuccess) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <StatusBar barStyle="dark-content" />
+                <View style={styles.successScreen}>
+                    <View style={styles.successIconWrap}>
+                        <CheckCircle size={56} color="#059669" />
+                    </View>
+                    <Text style={styles.successTitle}>{successTitle}</Text>
+                    <Text style={styles.successSubtitle}>{successSubtitle}</Text>
+                    <View style={styles.successActions}>
+                        <Button onPress={goToDashboard} fullWidth>
+                            Back to dashboard
+                        </Button>
+                        <Button
+                            onPress={goToPreviousJobs}
+                            fullWidth
+                            variant="outline"
+                            style={{ marginTop: spacing.sm }}
+                        >
+                            View my job posts
+                        </Button>
+                    </View>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -556,6 +624,40 @@ const styles = StyleSheet.create({
     },
     buttonContainer: {
         marginTop: spacing.xl,
+    },
+    successScreen: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: spacing.xl,
+    },
+    successIconWrap: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        backgroundColor: '#d1fae5',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: spacing.lg,
+    },
+    successTitle: {
+        fontSize: fontSize.xl,
+        fontWeight: '700',
+        color: colors.foreground,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+    },
+    successSubtitle: {
+        fontSize: fontSize.sm,
+        color: colors.muted,
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: spacing.xl,
+        maxWidth: 320,
+    },
+    successActions: {
+        width: '100%',
+        maxWidth: 360,
     },
 });
 

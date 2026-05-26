@@ -21,6 +21,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
 import { getRecruiterJobs, markJobFilledAsRecruiter } from '../lib/api';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
 
 type PreviousJobsNavigationProp = StackNavigationProp<RootStackParamList, 'PreviousJobs'>;
 
@@ -54,6 +55,8 @@ const PreviousJobsScreen: React.FC = () => {
     const [jobs, setJobs] = useState<JobPost[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [confirmFill, setConfirmFill] = useState<{ jobId: string; brand: string } | null>(null);
+    const [markingFilled, setMarkingFilled] = useState(false);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -81,26 +84,25 @@ const PreviousJobsScreen: React.FC = () => {
     };
 
     const handleMarkVacanciesFilled = (jobId: string, brand: string) => {
-        if (!recruiterData?.id) return;
-        Alert.alert(
-            'Vacancies filled?',
-            `"${brand}" will be hidden from all candidates. They will not be able to apply.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Hide from candidates',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await markJobFilledAsRecruiter(Number(jobId), recruiterData.id);
-                            loadJobs();
-                        } catch {
-                            Alert.alert('Error', 'Could not update job');
-                        }
-                    },
-                },
-            ]
-        );
+        if (!recruiterData?.id) {
+            Alert.alert('Recruiter login required', 'Please log in as a recruiter to manage jobs.');
+            return;
+        }
+        setConfirmFill({ jobId, brand });
+    };
+
+    const confirmMarkFilled = async () => {
+        if (!confirmFill || !recruiterData?.id) return;
+        setMarkingFilled(true);
+        try {
+            await markJobFilledAsRecruiter(Number(confirmFill.jobId), recruiterData.id);
+            setConfirmFill(null);
+            await loadJobs();
+        } catch {
+            Alert.alert('Error', 'Could not update job. Please try again.');
+        } finally {
+            setMarkingFilled(false);
+        }
     };
 
     const getStatusConfig = (status: string) => {
@@ -382,6 +384,20 @@ const PreviousJobsScreen: React.FC = () => {
                     })}
                 </ScrollView>
             )}
+
+            <ConfirmModal
+                visible={!!confirmFill}
+                title="Vacancies filled?"
+                message={
+                    confirmFill
+                        ? `"${confirmFill.brand}" will be hidden from all candidates. They will not be able to apply.`
+                        : ''
+                }
+                confirmText="Hide from candidates"
+                loading={markingFilled}
+                onConfirm={confirmMarkFilled}
+                onCancel={() => !markingFilled && setConfirmFill(null)}
+            />
         </SafeAreaView>
     );
 };

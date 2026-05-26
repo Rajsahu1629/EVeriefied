@@ -30,12 +30,14 @@ export const Input: React.FC<InputProps> = ({
 }) => {
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const isPassword = secureTextEntry !== undefined;
+    const isMultiline = Boolean(props.multiline);
 
     return (
         <View style={[styles.container, containerStyle]}>
             {label && <Text style={styles.label}>{label}</Text>}
             <View style={[
                 styles.inputContainer,
+                isMultiline && styles.inputContainerMultiline,
                 error && styles.inputError,
                 props.editable === false && styles.inputDisabled,
             ]}>
@@ -43,8 +45,10 @@ export const Input: React.FC<InputProps> = ({
                 <TextInput
                     style={[
                         styles.input,
+                        isMultiline && styles.inputMultiline,
                         leftIcon ? styles.inputWithLeftIcon : undefined,
                         (rightIcon || isPassword) ? styles.inputWithRightIcon : undefined,
+                        props.style,
                     ]}
                     placeholderTextColor={colors.mutedForeground}
                     secureTextEntry={isPassword && !isPasswordVisible}
@@ -88,6 +92,10 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.lg,
         minHeight: 48,
     },
+    inputContainerMultiline: {
+        alignItems: 'flex-start',
+        minHeight: 100,
+    },
     inputError: {
         borderColor: colors.error,
     },
@@ -97,10 +105,17 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
+        alignSelf: 'stretch',
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         fontSize: fontSize.base,
         color: colors.foreground,
+    },
+    inputMultiline: {
+        width: '100%',
+        minHeight: 88,
+        paddingTop: spacing.md,
+        textAlignVertical: 'top',
     },
     inputWithLeftIcon: {
         paddingLeft: spacing.xs,

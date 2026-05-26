@@ -27,6 +27,8 @@
   "subRoleFloorSupervisor": "Floor Supervisor",
   "subRoleSparePartManager": "Spare Part Manager",
   "recruiter": "Recruiter",
+  "asmAreaServiceManager": "ASM Area Service Manager",
+  "asmAreaServiceManagerDesc": "Manage service operations across designated areas",
   "bs6Technician": "BS6 Technician",
   "bs6TechnicianDesc": "Repair and Maintain of BS6 vehicles (2W/3W)",
   "evAspirant": "EV/BS6 Fresher",

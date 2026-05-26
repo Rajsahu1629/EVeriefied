@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Wrench, ShoppingBag, Building2, ChevronRight, Zap, Users, Plug, GraduationCap, Award, Briefcase } from 'lucide-react-native';
+import { Wrench, ShoppingBag, Building2, ChevronRight, Zap, Users, Plug, GraduationCap, Award, Briefcase, MapPin } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser, UserRole } from '../contexts/UserContext';
@@ -21,7 +21,7 @@ import { getPlatformStats } from '../lib/api';
 type RoleSelectionNavigationProp = StackNavigationProp<RootStackParamList, 'RoleSelection'>;
 
 interface RoleItem {
-    key: UserRole | 'recruiter' | 'bs6_technician';
+    key: UserRole | 'recruiter' | 'bs6_technician' | 'asm';
     icon: React.FC<any>;
     titleKey: string;
     descKey: string;
@@ -34,12 +34,13 @@ const roles: RoleItem[] = [
     { key: 'sales', icon: ShoppingBag, titleKey: 'showroom', descKey: 'evShowroomManagerDesc' },
     { key: 'workshop', icon: Building2, titleKey: 'workshopFleet', descKey: 'evWorkshopManagerDesc' },
     { key: 'recruiter', icon: Users, titleKey: 'recruiter', descKey: 'evRecruiterDesc' },
+    { key: 'asm', icon: MapPin, titleKey: 'asmAreaServiceManager', descKey: 'asmAreaServiceManagerDesc' },
 ];
 
 const RoleSelectionScreen: React.FC = () => {
     const navigation = useNavigation<RoleSelectionNavigationProp>();
     const { t } = useLanguage();
-    const { setSelectedRole, setSelectedDomain } = useUser();
+    const { setSelectedRole, setSelectedDomain, setSelectedSubRole } = useUser();
 
     // Platform stats for credibility
     const [stats, setStats] = useState({
@@ -76,7 +77,9 @@ const RoleSelectionScreen: React.FC = () => {
         fetchStats();
     }, []);
 
-    const handleRoleSelect = (roleKey: UserRole | 'recruiter' | 'bs6_technician') => {
+    const handleRoleSelect = (roleKey: UserRole | 'recruiter' | 'bs6_technician' | 'asm') => {
+        const roleItem = roles.find((r) => r.key === roleKey);
+
         if (roleKey === 'recruiter') {
             setSelectedRole('recruiter');
             navigation.navigate('RecruiterAction');
@@ -85,9 +88,16 @@ const RoleSelectionScreen: React.FC = () => {
             if (setSelectedDomain) {
                 setSelectedDomain('BS6');
             }
+            if (roleItem) setSelectedSubRole(t(roleItem.titleKey));
+            navigation.navigate('ActionSelection');
+        } else if (roleKey === 'asm') {
+            setSelectedRole('workshop');
+            if (setSelectedDomain) setSelectedDomain(null);
+            if (roleItem) setSelectedSubRole(t(roleItem.titleKey));
             navigation.navigate('ActionSelection');
         } else if (roleKey === 'sales' || roleKey === 'workshop') {
             setSelectedRole(roleKey);
+            setSelectedSubRole(null);
             if (setSelectedDomain) {
                 setSelectedDomain(null);
             }
@@ -98,6 +108,7 @@ const RoleSelectionScreen: React.FC = () => {
                 if (roleKey === 'technician') setSelectedDomain('EV');
                 else setSelectedDomain(null);
             }
+            if (roleItem) setSelectedSubRole(t(roleItem.titleKey));
             navigation.navigate('ActionSelection');
         }
     };
@@ -213,8 +224,8 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: colors.primary,
-        paddingTop: spacing.xxl,
-        paddingBottom: spacing.xxl + spacing.lg,
+        paddingTop: spacing.xl,
+        paddingBottom: spacing.xl,
         paddingHorizontal: spacing.lg,
         alignItems: 'center',
     },
@@ -275,17 +286,18 @@ const styles = StyleSheet.create({
     roleItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: spacing.md,
-        borderRadius: borderRadius.xl,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.lg,
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.card,
         gap: spacing.md,
     },
     roleIconWrapper: {
-        width: 48,
-        height: 48,
-        borderRadius: borderRadius.xl,
+        width: 40,
+        height: 40,
+        borderRadius: borderRadius.lg,
         backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',

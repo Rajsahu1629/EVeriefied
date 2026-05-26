@@ -12,7 +12,6 @@ import {
     TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
     Briefcase,
     MapPin,
@@ -20,16 +19,14 @@ import {
     Users,
     Building2,
     ChevronRight,
-    Home,
-    LogOut,
     CheckCircle,
     Search,
-    X
+    X,
 } from 'lucide-react-native';
+import { TabScreenHeader } from '../components/TabScreenHeader';
 import { useUser } from '../contexts/UserContext';
-import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
+import { colors, spacing, borderRadius, fontSize, layout } from '../lib/theme';
 import { getApprovedJobs, getUserAppliedJobIds, applyToJob } from '../lib/api';
-import { useNavigation } from '@react-navigation/native';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
@@ -38,8 +35,6 @@ import {
     formatVacancyCount,
     formatVehicleCategory,
 } from '../lib/jobDisplay';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
 
 // Types
 interface JobPost {
@@ -62,10 +57,8 @@ interface JobPost {
 }
 
 export default function JobsScreen() {
-    const { userData, logout } = useUser();
+    const { userData } = useUser();
     const { t } = useLanguage();
-    const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-
     const [jobs, setJobs] = useState<JobPost[]>([]);
     const [appliedJobs, setAppliedJobs] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState(true);
@@ -137,15 +130,6 @@ export default function JobsScreen() {
         }
     };
 
-    // Logout handler
-    const handleLogout = async () => {
-        await logout();
-        navigation.reset({
-            index: 0,
-            routes: [{ name: 'RoleSelection' }],
-        });
-    };
-
     // Filter jobs when search query or salary filter changes
     useEffect(() => {
         let filtered = [...jobs];
@@ -213,7 +197,7 @@ export default function JobsScreen() {
                 {/* Card Header - Similar to PreviousJobsScreen */}
                 <View style={[styles.cardHeader, isApplied && styles.blurredContent]}>
                     <View style={styles.iconContainer}>
-                        <Briefcase size={24} color={colors.primary} />
+                        <Briefcase size={20} color={colors.primary} />
                     </View>
                     <View style={styles.headerInfo}>
                         <Text style={styles.roleTitle}>
@@ -323,7 +307,7 @@ export default function JobsScreen() {
     // Empty state
     const EmptyState = () => (
         <View style={styles.emptyState}>
-            <Briefcase size={64} color={colors.muted} />
+            <Briefcase size={48} color={colors.muted} />
             <Text style={styles.emptyTitle}>{t('noJobsAvailable')}</Text>
             <Text style={styles.emptySubtitle}>
                 {t('noJobsAvailableDesc')}
@@ -331,109 +315,87 @@ export default function JobsScreen() {
         </View>
     );
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" />
+    const salaryFilters = [
+        { label: t('filterAll'), value: null },
+        { label: '₹10K+', value: 10000 },
+        { label: '₹15K+', value: 15000 },
+        { label: '₹20K+', value: 20000 },
+    ] as const;
 
-            {/* Header */}
-            <LinearGradient
-                colors={['#1a9d6e', '#137a55']}
-                style={styles.headerBackground}
-            >
-                <View style={styles.headerContent}>
-                    <View>
-                        <Text style={styles.welcomeText}>
-                            {t('welcomeUser', {
-                                name: userData?.fullName?.split(' ')[0] || t('user'),
-                            })}
-                        </Text>
-                        <Text style={styles.headerSubtitle}>
-                            {userData?.role === 'technician' ? t('evTechnician') :
-                                userData?.role === 'sales' ? t('evShowroomManager') :
-                                    userData?.role === 'workshop' ? t('evWorkshopManager') : t('evProfessional')}
-                        </Text>
-                    </View>
-                    <View style={styles.headerActions}>
-                        <LanguageSelector color="#fff" />
-                        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                            <LogOut size={24} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </LinearGradient>
-
-            {/* Content */}
-            <View style={styles.content}>
-                <View style={styles.sectionHeader}>
-                    <Briefcase size={20} color={colors.foreground} />
-                    <Text style={styles.sectionTitle}>{t('applyForJobs')}</Text>
-                </View>
-
-                {/* Search Bar */}
-                <View style={styles.searchContainer}>
-                    <Search size={20} color={colors.muted} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder={t('searchJobsPlaceholder')}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholderTextColor={colors.muted}
-                    />
-                    {searchQuery.length > 0 ? (
-                        <TouchableOpacity onPress={() => setSearchQuery('')}>
-                            <X size={20} color={colors.muted} />
-                        </TouchableOpacity>
-                    ) : null}
-                </View>
-
-                {/* Salary Filter Chips */}
-                <View style={styles.filterRow}>
-                    <Text style={styles.filterLabel}>{t('salaryFilterLabel')}</Text>
-                    {[
-                        { label: t('filterAll'), value: null },
-                        { label: '₹10K+', value: 10000 },
-                        { label: '₹15K+', value: 15000 },
-                        { label: '₹20K+', value: 20000 },
-                    ].map((filter) => (
-                        <TouchableOpacity
-                            key={filter.label}
+    const ListHeader = () => (
+        <View style={styles.listHeader}>
+            <View style={styles.searchContainer}>
+                <Search size={18} color={colors.muted} />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder={t('searchJobsPlaceholder')}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholderTextColor={colors.muted}
+                />
+                {searchQuery.length > 0 ? (
+                    <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                        <X size={18} color={colors.muted} />
+                    </TouchableOpacity>
+                ) : null}
+            </View>
+            <View style={styles.filterRow}>
+                {salaryFilters.map((filter) => (
+                    <TouchableOpacity
+                        key={filter.label}
+                        style={[
+                            styles.filterChip,
+                            salaryFilter === filter.value && styles.filterChipActive,
+                        ]}
+                        onPress={() => setSalaryFilter(filter.value)}
+                    >
+                        <Text
                             style={[
-                                styles.filterChip,
-                                salaryFilter === filter.value && styles.filterChipActive,
-                            ]}
-                            onPress={() => setSalaryFilter(filter.value)}
-                        >
-                            <Text style={[
                                 styles.filterChipText,
                                 salaryFilter === filter.value && styles.filterChipTextActive,
-                            ]}>{filter.label}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                {loading ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={styles.loadingText}>{t('loadingJobs')}</Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={filteredJobs}
-                        renderItem={renderJobCard}
-                        keyExtractor={item => item.id.toString()}
-                        contentContainerStyle={styles.listContent}
-                        showsVerticalScrollIndicator={false}
-                        refreshControl={
-                            <RefreshControl
-                                refreshing={refreshing}
-                                onRefresh={onRefresh}
-                                colors={[colors.primary]}
-                            />
-                        }
-                        ListEmptyComponent={EmptyState}
-                    />
-                )}
+                            ]}
+                        >
+                            {filter.label}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
             </View>
+        </View>
+    );
+
+    return (
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <StatusBar barStyle="light-content" />
+
+            <TabScreenHeader
+                title={t('jobs')}
+                icon={<Briefcase size={20} color={colors.primaryForeground} />}
+                right={<LanguageSelector color="#fff" />}
+            />
+
+            {loading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={styles.loadingText}>{t('loadingJobs')}</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredJobs}
+                    renderItem={renderJobCard}
+                    keyExtractor={(item) => item.id.toString()}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ListHeaderComponent={ListHeader}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[colors.primary]}
+                        />
+                    }
+                    ListEmptyComponent={EmptyState}
+                />
+            )}
         </SafeAreaView>
     );
 }
@@ -441,69 +403,35 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: '#f8fafc',
     },
-    headerBackground: {
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.xl,
-        paddingHorizontal: spacing.lg,
-    },
-    headerContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    welcomeText: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    headerSubtitle: {
-        fontSize: 14,
-        color: 'rgba(255,255,255,0.8)',
-        marginTop: 2,
-    },
-    logoutButton: {
-        padding: spacing.sm,
-    },
-    content: {
-        flex: 1,
-        paddingHorizontal: spacing.lg,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    listHeader: {
+        paddingBottom: spacing.sm,
         gap: spacing.sm,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.md,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.card,
-        borderRadius: borderRadius.lg,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
+        height: layout.inputHeight,
         borderWidth: 1,
         borderColor: colors.border,
-        marginBottom: spacing.md,
         gap: spacing.sm,
     },
     searchInput: {
         flex: 1,
-        fontSize: fontSize.base,
+        fontSize: fontSize.sm,
         color: colors.foreground,
-        padding: 0, // Remove default padding on Android
-        height: 40,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.foreground,
+        padding: 0,
+        height: layout.inputHeight,
     },
     listContent: {
-        paddingBottom: 100,
-        gap: spacing.md,
+        paddingHorizontal: layout.screenPaddingX,
+        paddingTop: layout.screenPaddingY,
+        paddingBottom: 88,
+        gap: layout.cardGap,
     },
     loadingContainer: {
         flex: 1,
@@ -519,16 +447,16 @@ const styles = StyleSheet.create({
     // Job Card Styles
     jobCard: {
         backgroundColor: colors.card,
-        borderRadius: borderRadius.xl,
-        padding: spacing.lg,
+        borderRadius: borderRadius.lg,
+        padding: layout.cardPaddingLg,
         borderWidth: 1,
         borderColor: colors.border,
     },
     cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.md,
-        marginBottom: spacing.md,
+        gap: spacing.sm,
+        marginBottom: spacing.sm,
     },
     companyIcon: {
         width: 44,
@@ -592,9 +520,9 @@ const styles = StyleSheet.create({
     },
     // New styles for redesigned card
     iconContainer: {
-        width: 50,
-        height: 50,
-        borderRadius: 12,
+        width: layout.avatarMd,
+        height: layout.avatarMd,
+        borderRadius: borderRadius.md,
         backgroundColor: colors.primary + '15',
         alignItems: 'center',
         justifyContent: 'center',
@@ -603,36 +531,36 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     roleTitle: {
-        fontSize: 17,
+        fontSize: fontSize.base,
         fontWeight: '700',
-        color: colors.primary,
+        color: colors.foreground,
     },
     trainingRoleText: {
-        fontSize: 14,
+        fontSize: fontSize.sm,
         color: colors.primary,
         fontWeight: '500',
-        marginTop: 2,
+        marginTop: 1,
     },
     brandText: {
-        fontSize: 13,
+        fontSize: fontSize.sm,
         color: colors.muted,
-        marginTop: 2,
+        marginTop: 1,
     },
     salaryText: {
-        fontSize: 16,
+        fontSize: fontSize.base,
         fontWeight: '700',
         color: colors.primary,
-        marginTop: spacing.sm,
+        marginTop: spacing.xs,
         marginBottom: spacing.xs,
     },
     locationRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        marginBottom: spacing.md,
+        gap: 4,
+        marginBottom: spacing.sm,
     },
     locationText: {
-        fontSize: 14,
+        fontSize: fontSize.sm,
         color: colors.muted,
     },
     tagsContainer: {
@@ -644,11 +572,11 @@ const styles = StyleSheet.create({
     tagChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 16,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: borderRadius.full,
         borderWidth: 1,
-        gap: 4,
+        gap: 3,
     },
     tagNew: {
         backgroundColor: '#d1fae5',
@@ -663,7 +591,7 @@ const styles = StyleSheet.create({
         borderColor: '#fdba74',
     },
     tagChipText: {
-        fontSize: 12,
+        fontSize: fontSize.xs,
         fontWeight: '500',
         color: colors.foreground,
     },
@@ -676,13 +604,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#fef9c3',
         borderColor: '#fde047',
         borderWidth: 1,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 16,
-        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: borderRadius.full,
+        gap: 3,
     },
     experienceTagText: {
-        fontSize: 12,
+        fontSize: fontSize.xs,
         fontWeight: '600',
         color: '#ca8a04',
     },
@@ -690,7 +618,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: spacing.xs,
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
     },
     vehicleCategoryTag: {
         flexDirection: 'row',
@@ -698,21 +626,21 @@ const styles = StyleSheet.create({
         backgroundColor: '#dbeafe',
         borderColor: '#93c5fd',
         borderWidth: 1,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 16,
-        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: borderRadius.full,
+        gap: 3,
     },
     vehicleCategoryText: {
-        fontSize: 12,
+        fontSize: fontSize.xs,
         fontWeight: '600',
         color: '#1d4ed8',
     },
     jobDescriptionContainer: {
         backgroundColor: '#f9fafb',
-        borderRadius: 8,
+        borderRadius: borderRadius.sm,
         padding: spacing.sm,
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
         borderWidth: 1,
         borderColor: '#e5e7eb',
     },
@@ -732,15 +660,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: colors.primary,
-        paddingVertical: 12,
-        borderRadius: borderRadius.lg,
+        minHeight: layout.buttonHeight,
+        borderRadius: borderRadius.md,
         gap: spacing.xs,
     },
     appliedButton: {
         backgroundColor: '#10b981', // Green as requested
     },
     applyButtonText: {
-        fontSize: 15,
+        fontSize: fontSize.sm,
         fontWeight: '600',
         color: '#fff',
     },
@@ -790,28 +718,16 @@ const styles = StyleSheet.create({
         color: colors.muted,
         marginTop: spacing.xs,
     },
-    headerActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-    },
-    // Filter styles
     filterRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
+        flexWrap: 'wrap',
         gap: spacing.xs,
-    },
-    filterLabel: {
-        fontSize: 12,
-        color: colors.muted,
-        marginRight: spacing.xs,
     },
     filterChip: {
         paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: 16,
+        paddingVertical: 5,
+        borderRadius: borderRadius.full,
         backgroundColor: colors.secondary,
         borderWidth: 1,
         borderColor: colors.border,

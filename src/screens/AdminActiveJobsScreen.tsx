@@ -9,11 +9,14 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
 import { getAdminActiveJobs, markJobVacanciesFilled } from '../lib/api';
+import { ConfirmModal } from '../components/ui/ConfirmModal';
 
 export default function AdminActiveJobsScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const [jobs, setJobs] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [confirmFill, setConfirmFill] = useState<{ jobId: number; brand: string } | null>(null);
+    const [markingFilled, setMarkingFilled] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -29,25 +32,21 @@ export default function AdminActiveJobsScreen() {
     useEffect(() => { load(); }, [load]);
 
     const handleMarkFilled = (jobId: number, brand: string) => {
-        Alert.alert(
-            'Vacancies filled?',
-            `"${brand}" will be hidden from candidates. They will no longer see or apply to this job.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Hide from candidates',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await markJobVacanciesFilled(jobId);
-                            load();
-                        } catch {
-                            Alert.alert('Error', 'Could not update job');
-                        }
-                    },
-                },
-            ]
-        );
+        setConfirmFill({ jobId, brand });
+    };
+
+    const confirmMarkFilled = async () => {
+        if (!confirmFill) return;
+        setMarkingFilled(true);
+        try {
+            await markJobVacanciesFilled(confirmFill.jobId);
+            setConfirmFill(null);
+            await load();
+        } catch {
+            Alert.alert('Error', 'Could not update job. Please try again.');
+        } finally {
+            setMarkingFilled(false);
+        }
     };
 
     const openApplicants = (item: any) => {
@@ -103,6 +102,20 @@ export default function AdminActiveJobsScreen() {
                 contentContainerStyle={styles.list}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
                 ListEmptyComponent={<Text style={styles.empty}>No live jobs</Text>}
+            />
+
+            <ConfirmModal
+                visible={!!confirmFill}
+                title="Vacancies filled?"
+                message={
+                    confirmFill
+                        ? `"${confirmFill.brand}" will be hidden from candidates. They will no longer see or apply to this job.`
+                        : ''
+                }
+                confirmText="Hide from candidates"
+                loading={markingFilled}
+                onConfirm={confirmMarkFilled}
+                onCancel={() => !markingFilled && setConfirmFill(null)}
             />
         </SafeAreaView>
     );

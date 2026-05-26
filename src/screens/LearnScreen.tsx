@@ -4,7 +4,8 @@ import {
     StatusBar, Linking, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing } from '../lib/theme';
+import { colors, spacing, layout, fontSize } from '../lib/theme';
+import { TabScreenHeader } from '../components/TabScreenHeader';
 import {
     BookOpen, Play, ExternalLink, Zap, Battery, Wrench, Award,
     Trophy, Star, CheckCircle, XCircle, Timer
@@ -109,7 +110,10 @@ export default function LearnScreen() {
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar barStyle="light-content" />
-            <View style={styles.header}><BookOpen size={22} color="#fff" /><Text style={styles.headerTitle}>{t('learnings')}</Text></View>
+            <TabScreenHeader
+                title={t('learnings')}
+                icon={<BookOpen size={20} color="#fff" />}
+            />
 
             <View style={styles.tabs}>
                 <TouchableOpacity style={[styles.tab, tab === 'videos' && styles.tabActive]} onPress={() => setTab('videos')}>
@@ -195,15 +199,13 @@ export default function LearnScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8fafc' },
-    header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: '#1a9d6e', padding: spacing.md, paddingTop: spacing.lg },
-    headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
     tabs: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-    tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
+    tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 },
     tabActive: { backgroundColor: colors.primary },
     tabText: { fontSize: 14, fontWeight: '600', color: colors.muted },
     tabTextActive: { color: '#fff' },
     liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
-    content: { flex: 1, padding: spacing.md },
+    content: { flex: 1, paddingHorizontal: layout.screenPaddingX, paddingTop: layout.screenPaddingY },
     sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.foreground, marginBottom: spacing.sm, marginTop: spacing.sm },
     courseCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: spacing.md, borderRadius: 12, marginBottom: spacing.sm, borderWidth: 1, borderColor: '#e2e8f0' },
     iconBox: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
@@ -238,14 +240,14 @@ const styles = StyleSheet.create({
     finalScore: { fontSize: 40, fontWeight: 'bold', color: '#7c3aed', marginVertical: spacing.sm },
     backBtn: { backgroundColor: '#7c3aed', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginTop: spacing.sm },
     backBtnText: { color: '#fff', fontWeight: '600' },
-    channelContainer: { backgroundColor: '#fff', borderRadius: 16, padding: spacing.lg, alignItems: 'center', marginTop: spacing.md, borderWidth: 1, borderColor: '#e2e8f0' },
-    channelHeader: { alignItems: 'center', marginBottom: spacing.lg },
-    channelIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#fee2e2', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
-    channelTitle: { fontSize: 20, fontWeight: 'bold', color: colors.foreground, marginBottom: 4 },
+    channelContainer: { backgroundColor: '#fff', borderRadius: 12, padding: spacing.lg, alignItems: 'center', marginTop: spacing.sm, borderWidth: 1, borderColor: '#e2e8f0' },
+    channelHeader: { alignItems: 'center', marginBottom: spacing.md },
+    channelIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#fee2e2', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+    channelTitle: { fontSize: fontSize.lg, fontWeight: 'bold', color: colors.foreground, marginBottom: 4 },
     channelSub: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-    channelBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#ff0000', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginBottom: spacing.lg },
+    channelBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#ff0000', paddingHorizontal: 20, minHeight: layout.buttonHeight, borderRadius: 22, marginBottom: spacing.md, justifyContent: 'center' },
     channelBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
     featuresList: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.sm },
-    featureItem: { width: '48%', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f8fafc', padding: spacing.md, borderRadius: 12 },
+    featureItem: { width: '48%', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f8fafc', padding: spacing.sm, borderRadius: 10, minHeight: 40 },
     featureLabel: { fontSize: 12, fontWeight: '600', color: colors.foreground },
 });

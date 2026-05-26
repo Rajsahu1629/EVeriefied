@@ -10,7 +10,8 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    Linking
+    Linking,
+    Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -36,6 +37,8 @@ const RecruiterLoginScreen: React.FC = () => {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ phone?: string; password?: string }>({});
+    const [pendingRecruiter, setPendingRecruiter] = useState<RecruiterData | null>(null);
+    const [showAccountChoice, setShowAccountChoice] = useState(false);
 
     const validate = (): boolean => {
         const newErrors: { phone?: string; password?: string } = {};
@@ -54,6 +57,26 @@ const RecruiterLoginScreen: React.FC = () => {
         return Object.keys(newErrors).length === 0;
     };
 
+    const enterRecruiterDashboard = (recruiter: RecruiterData) => {
+        setRecruiterData(recruiter);
+        setIsRecruiterLoggedIn(true);
+        setShowAccountChoice(false);
+        setPendingRecruiter(null);
+        navigation.reset({
+            index: 0,
+            routes: [{ name: 'RecruiterDashboard' }],
+        });
+    };
+
+    const enterAdminDashboard = () => {
+        setShowAccountChoice(false);
+        setPendingRecruiter(null);
+        navigation.reset({
+            index: 0,
+            routes: [{ name: 'AdminDashboard' }],
+        });
+    };
+
     const handleLogin = async () => {
         if (!validate()) return;
 
@@ -63,40 +86,44 @@ const RecruiterLoginScreen: React.FC = () => {
         const trimmedPassword = password.trim();
 
         try {
-            // Admin credentials → admin panel; otherwise normal recruiter login
             const isAdmin = await loginAsAdmin(trimmedPhone, trimmedPassword);
+
+            let recruiterResponse: Awaited<ReturnType<typeof loginRecruiter>> | null = null;
+            try {
+                recruiterResponse = await loginRecruiter(trimmedPhone, trimmedPassword);
+            } catch {
+                recruiterResponse = null;
+            }
+
+            const recruiter = recruiterResponse?.success ? recruiterResponse.recruiter : null;
+            const recruiterData: RecruiterData | null = recruiter
+                ? {
+                    id: recruiter.id,
+                    companyName: recruiter.companyName,
+                    entityType: recruiter.entityType as EntityType,
+                    phoneNumber: recruiter.phoneNumber,
+                }
+                : null;
+
+            if (isAdmin && recruiterData) {
+                setPendingRecruiter(recruiterData);
+                setShowAccountChoice(true);
+                return;
+            }
+
             if (isAdmin) {
-                navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'AdminDashboard' }],
-                });
+                enterAdminDashboard();
                 return;
             }
 
             await clearAdminToken();
-            const response = await loginRecruiter(trimmedPhone, trimmedPassword);
 
-            if (!response.success || !response.recruiter) {
+            if (!recruiterData) {
                 Alert.alert(t('error'), t('loginFailed'));
-                setIsLoading(false);
                 return;
             }
 
-            const recruiter = response.recruiter;
-            const recruiterData: RecruiterData = {
-                id: recruiter.id,
-                companyName: recruiter.companyName,
-                entityType: recruiter.entityType as EntityType,
-                phoneNumber: recruiter.phoneNumber,
-            };
-
-            setRecruiterData(recruiterData);
-            setIsRecruiterLoggedIn(true);
-
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'RecruiterDashboard' }],
-            });
+            enterRecruiterDashboard(recruiterData);
         } catch (error: any) {
             const rawMessage = error?.message || '';
             let userMessage = t('networkError');
@@ -205,6 +232,52 @@ const RecruiterLoginScreen: React.FC = () => {
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <Modal
+                visible={showAccountChoice}
+                transparent
+                animationType="fade"
+                onRequestClose={async () => {
+                    setShowAccountChoice(false);
+                    setPendingRecruiter(null);
+                    await clearAdminToken();
+                }}
+            >
+                <View style={styles.choiceOverlay}>
+                    <View style={styles.choiceCard}>
+                        <Text style={styles.choiceTitle}>Choose how to sign in</Text>
+                        <Text style={styles.choiceBody}>
+                            This phone and password match both admin and recruiter accounts.
+                        </Text>
+                        <Button onPress={enterAdminDashboard} fullWidth>
+                            Admin panel
+                        </Button>
+                        <Button
+                            onPress={async () => {
+                                await clearAdminToken();
+                                if (pendingRecruiter) {
+                                    enterRecruiterDashboard(pendingRecruiter);
+                                }
+                            }}
+                            fullWidth
+                            variant="outline"
+                            style={{ marginTop: spacing.sm }}
+                        >
+                            Recruiter account
+                        </Button>
+                        <TouchableOpacity
+                            style={styles.choiceCancel}
+                            onPress={async () => {
+                                setShowAccountChoice(false);
+                                setPendingRecruiter(null);
+                                await clearAdminToken();
+                            }}
+                        >
+                            <Text style={styles.choiceCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -294,6 +367,42 @@ const styles = StyleSheet.create({
     forgotPasswordText: {
         fontSize: fontSize.sm,
         color: colors.primary,
+        fontWeight: '600',
+    },
+    choiceOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: spacing.lg,
+    },
+    choiceCard: {
+        backgroundColor: colors.card,
+        borderRadius: borderRadius['2xl'],
+        padding: spacing.lg,
+        ...shadows.lg,
+    },
+    choiceTitle: {
+        fontSize: fontSize.lg,
+        fontWeight: '700',
+        color: colors.foreground,
+        marginBottom: spacing.sm,
+        textAlign: 'center',
+    },
+    choiceBody: {
+        fontSize: fontSize.sm,
+        color: colors.muted,
+        textAlign: 'center',
+        marginBottom: spacing.lg,
+        lineHeight: 20,
+    },
+    choiceCancel: {
+        marginTop: spacing.md,
+        alignItems: 'center',
+        padding: spacing.sm,
+    },
+    choiceCancelText: {
+        fontSize: fontSize.sm,
+        color: colors.muted,
         fontWeight: '600',
     },
 });

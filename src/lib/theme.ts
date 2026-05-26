@@ -41,10 +41,30 @@ export const colors = {
 export const spacing = {
     xs: 4,
     sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
-    xxl: 48,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    xxl: 32,
+};
+
+/** Consistent layout rhythm — enterprise mobile density */
+export const layout = {
+    screenPaddingX: 16,
+    screenPaddingY: 12,
+    headerHeight: 48,
+    tabBarHeight: 56,
+    rowHeight: 48,
+    buttonHeight: 44,
+    buttonHeightSm: 36,
+    inputHeight: 40,
+    cardPadding: 12,
+    cardPaddingLg: 14,
+    cardGap: 10,
+    iconSm: 16,
+    iconMd: 20,
+    iconLg: 40,
+    avatarMd: 44,
+    touchTarget: 44,
 };
 
 // Font sizes

@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius } from '../lib/theme';
+import { colors, spacing, borderRadius, layout } from '../lib/theme';
+import { TabScreenHeader } from '../components/TabScreenHeader';
 import { Calendar, ChevronRight, Newspaper, ExternalLink } from 'lucide-react-native';
 import { useLanguage } from '../contexts/LanguageContext';
 import { pickLocalizedText } from '../lib/localizedContent';
@@ -55,10 +56,11 @@ export default function NewsScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar barStyle="light-content" />
 
-            <View style={styles.header}>
-                <Newspaper size={22} color="#fff" />
-                <Text style={styles.headerTitle}>{t('evNews')}</Text>
-            </View>
+            <TabScreenHeader
+                title={t('evNews')}
+                icon={<Newspaper size={20} color="#fff" />}
+                backgroundColor="#dc2626"
+            />
 
             <FlatList
                 data={NEWS_ARTICLES}
@@ -87,22 +89,11 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8fafc',
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        backgroundColor: '#dc2626',
-        padding: spacing.md,
-        paddingTop: spacing.lg,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
     listContent: {
-        padding: spacing.md,
-        gap: spacing.sm,
+        paddingHorizontal: layout.screenPaddingX,
+        paddingTop: layout.screenPaddingY,
+        paddingBottom: 88,
+        gap: layout.cardGap,
     },
     newsCard: {
         flexDirection: 'row',
