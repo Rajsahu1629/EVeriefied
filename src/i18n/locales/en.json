@@ -371,5 +371,9 @@
   "hoursAgoOne": "1 hour ago",
   "daysAgoNews": "{{count}} days ago",
   "daysAgoOne": "1 day ago",
-  "tabAppliedShort": "Applied"
+  "tabAppliedShort": "Applied",
+  "confirmApplication": "Confirm Application",
+  "confirmApplicationDesc": "Please review the job details before applying.",
+  "cancel": "Cancel",
+  "confirm": "Confirm"
 }

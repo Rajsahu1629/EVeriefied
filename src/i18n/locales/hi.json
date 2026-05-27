@@ -345,5 +345,9 @@
   "hoursAgoOne": "1 घंटे पहले",
   "daysAgoNews": "{{count}} दिन पहले",
   "daysAgoOne": "1 दिन पहले",
-  "tabAppliedShort": "आवेदन"
+  "tabAppliedShort": "आवेदन",
+  "confirmApplication": "आवेदन की पुष्टि करें",
+  "confirmApplicationDesc": "आवेदन करने से पहले नौकरी का विवरण देखें।",
+  "cancel": "रद्द करें",
+  "confirm": "पुष्टि करें"
 }

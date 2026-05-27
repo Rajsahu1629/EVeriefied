@@ -25,6 +25,8 @@ import { Select } from '../components/ui/Select';
 import { Checkbox } from '../components/ui/Checkbox';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
 import { checkRecruiterPhoneExists, registerRecruiter } from '../lib/api';
+import { LocationFields } from '../components/LocationFields';
+import { validateLocationFields } from '../lib/indiaLocations';
 
 type RecruiterRegistrationNavigationProp = StackNavigationProp<RootStackParamList, 'RecruiterRegistration'>;
 
@@ -69,13 +71,13 @@ const RecruiterRegistrationScreen: React.FC = () => {
         if (!formData.companyName) newErrors.companyName = t('required');
         if (!formData.entityType) newErrors.entityType = t('required');
         if (!formData.fullAddress) newErrors.fullAddress = t('required');
-        if (!formData.city) newErrors.city = t('required');
-        if (!formData.state) newErrors.state = t('required');
-        if (!formData.pincode) {
-            newErrors.pincode = t('required');
-        } else if (!/^\d{6}$/.test(formData.pincode)) {
-            newErrors.pincode = t('invalidPincode');
-        }
+        Object.assign(
+            newErrors,
+            validateLocationFields(formData.state, formData.city, formData.pincode, {
+                required: t('required'),
+                invalidPincode: t('invalidPincode'),
+            })
+        );
         if (!formData.phoneNumber) {
             newErrors.phoneNumber = t('required');
         } else if (!/^[6-9]\d{9}$/.test(formData.phoneNumber)) {
@@ -260,54 +262,26 @@ const RecruiterRegistrationScreen: React.FC = () => {
                         numberOfLines={2}
                     />
 
-                    <Input
-                        label={t('city')}
-                        placeholder={t('enterCity')}
-                        value={formData.city}
-                        onChangeText={(v) => updateField('city', v)}
-                        error={errors.city}
-                    />
-
-                    <Select
-                        label={t('state')}
-                        placeholder={t('enterState')}
-                        options={[
-                            { label: 'Andhra Pradesh', value: 'Andhra Pradesh' },
-                            { label: 'Bihar', value: 'Bihar' },
-                            { label: 'Chhattisgarh', value: 'Chhattisgarh' },
-                            { label: 'Delhi', value: 'Delhi' },
-                            { label: 'Goa', value: 'Goa' },
-                            { label: 'Gujarat', value: 'Gujarat' },
-                            { label: 'Haryana', value: 'Haryana' },
-                            { label: 'Himachal Pradesh', value: 'Himachal Pradesh' },
-                            { label: 'Jammu & Kashmir', value: 'Jammu & Kashmir' },
-                            { label: 'Jharkhand', value: 'Jharkhand' },
-                            { label: 'Karnataka', value: 'Karnataka' },
-                            { label: 'Kerala', value: 'Kerala' },
-                            { label: 'Madhya Pradesh', value: 'Madhya Pradesh' },
-                            { label: 'Maharashtra', value: 'Maharashtra' },
-                            { label: 'Odisha', value: 'Odisha' },
-                            { label: 'Punjab', value: 'Punjab' },
-                            { label: 'Rajasthan', value: 'Rajasthan' },
-                            { label: 'Tamil Nadu', value: 'Tamil Nadu' },
-                            { label: 'Telangana', value: 'Telangana' },
-                            { label: 'Uttar Pradesh', value: 'Uttar Pradesh' },
-                            { label: 'Uttarakhand', value: 'Uttarakhand' },
-                            { label: 'West Bengal', value: 'West Bengal' },
-                        ]}
-                        value={formData.state}
-                        onValueChange={(v) => updateField('state', v)}
-                        error={errors.state}
-                    />
-
-                    <Input
-                        label={t('pincode')}
-                        placeholder="110001"
-                        keyboardType="number-pad"
-                        value={formData.pincode}
-                        onChangeText={(v) => updateField('pincode', v)}
-                        error={errors.pincode}
-                        maxLength={6}
+                    <LocationFields
+                        values={{
+                            state: formData.state,
+                            city: formData.city,
+                            pincode: formData.pincode,
+                        }}
+                        onChange={(field, value) => updateField(field, value)}
+                        errors={{
+                            state: errors.state,
+                            city: errors.city,
+                            pincode: errors.pincode,
+                        }}
+                        labels={{
+                            state: t('state'),
+                            city: t('city'),
+                            pincode: t('pincode'),
+                            selectState: t('selectState'),
+                            selectCity: t('selectCity'),
+                            selectStateFirst: t('selectState'),
+                        }}
                     />
 
                     <Input

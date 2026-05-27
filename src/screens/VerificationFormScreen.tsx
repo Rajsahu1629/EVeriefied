@@ -26,40 +26,10 @@ import { Checkbox } from '../components/ui/Checkbox';
 import { Progress } from '../components/ui/Progress';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
 import { checkPhoneExists, registerUser, updateUser } from '../lib/api';
+import { LocationFields } from '../components/LocationFields';
+import { resolveCityInState, validateLocationFields } from '../lib/indiaLocations';
 
 type VerificationFormNavigationProp = StackNavigationProp<RootStackParamList, 'VerificationForm'>;
-
-const states = [
-    { label: 'Andhra Pradesh', value: 'Andhra Pradesh' },
-    { label: 'Arunachal Pradesh', value: 'Arunachal Pradesh' },
-    { label: 'Assam', value: 'Assam' },
-    { label: 'Bihar', value: 'Bihar' },
-    { label: 'Chhattisgarh', value: 'Chhattisgarh' },
-    { label: 'Delhi', value: 'Delhi' },
-    { label: 'Goa', value: 'Goa' },
-    { label: 'Gujarat', value: 'Gujarat' },
-    { label: 'Haryana', value: 'Haryana' },
-    { label: 'Himachal Pradesh', value: 'Himachal Pradesh' },
-    { label: 'Jharkhand', value: 'Jharkhand' },
-    { label: 'Karnataka', value: 'Karnataka' },
-    { label: 'Kerala', value: 'Kerala' },
-    { label: 'Madhya Pradesh', value: 'Madhya Pradesh' },
-    { label: 'Maharashtra', value: 'Maharashtra' },
-    { label: 'Manipur', value: 'Manipur' },
-    { label: 'Meghalaya', value: 'Meghalaya' },
-    { label: 'Mizoram', value: 'Mizoram' },
-    { label: 'Nagaland', value: 'Nagaland' },
-    { label: 'Odisha', value: 'Odisha' },
-    { label: 'Punjab', value: 'Punjab' },
-    { label: 'Rajasthan', value: 'Rajasthan' },
-    { label: 'Sikkim', value: 'Sikkim' },
-    { label: 'Tamil Nadu', value: 'Tamil Nadu' },
-    { label: 'Telangana', value: 'Telangana' },
-    { label: 'Tripura', value: 'Tripura' },
-    { label: 'Uttar Pradesh', value: 'Uttar Pradesh' },
-    { label: 'Uttarakhand', value: 'Uttarakhand' },
-    { label: 'West Bengal', value: 'West Bengal' },
-];
 
 // Moved inside component for translation
 
@@ -125,7 +95,7 @@ const VerificationFormScreen: React.FC = () => {
         password: '', // Don't pre-fill password
         confirmPassword: '',
         state: userData?.state || '',
-        city: userData?.city || '',
+        city: resolveCityInState(userData?.state || '', userData?.city || ''),
         pincode: userData?.pincode || '',
         qualification: userData?.qualification || '',
         experience: userData?.experience === 'fresher' && selectedRole !== 'aspirant' ? '0-1' : (userData?.experience || ''),
@@ -201,7 +171,13 @@ const VerificationFormScreen: React.FC = () => {
                 newErrors.confirmPassword = t('passwordMismatch');
             }
         }
-        if (!formData.state) newErrors.state = t('required');
+        Object.assign(
+            newErrors,
+            validateLocationFields(formData.state, formData.city, formData.pincode, {
+                required: t('required'),
+                invalidPincode: t('invalidPincode'),
+            })
+        );
 
         if (!formData.domain) newErrors.domain = t('required');
 
@@ -411,22 +387,26 @@ const VerificationFormScreen: React.FC = () => {
                 />
             )}
 
-            <Select
-                label={t('state')}
-                placeholder={t('selectState')}
-                options={states}
-                value={formData.state}
-                onValueChange={(v) => updateField('state', v)}
-                error={errors.state}
-            />
-
-            <Input
-                label={t('city')}
-                placeholder={t('city')}
-                value={formData.city}
-                onChangeText={(v) => updateField('city', v)}
-                error={errors.city}
-                leftIcon={<MapPin size={20} color={colors.muted} />}
+            <LocationFields
+                values={{
+                    state: formData.state,
+                    city: formData.city,
+                    pincode: formData.pincode,
+                }}
+                onChange={(field, value) => updateField(field, value)}
+                errors={{
+                    state: errors.state,
+                    city: errors.city,
+                    pincode: errors.pincode,
+                }}
+                labels={{
+                    state: t('state'),
+                    city: t('city'),
+                    pincode: t('pincode'),
+                    selectState: t('selectState'),
+                    selectCity: t('selectCity'),
+                    selectStateFirst: t('selectState'),
+                }}
             />
 
             {/* Domain Selection */}
@@ -450,16 +430,6 @@ const VerificationFormScreen: React.FC = () => {
                     error={errors.vehicleCategory}
                 />
             )}
-
-            <Input
-                label={t('pincode')}
-                placeholder="123456"
-                keyboardType="number-pad"
-                value={formData.pincode}
-                onChangeText={(v) => updateField('pincode', v)}
-                maxLength={6}
-                error={errors.pincode}
-            />
 
             {selectedRole === 'aspirant' && (
                 <>

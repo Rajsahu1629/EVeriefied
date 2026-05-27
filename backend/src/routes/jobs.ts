@@ -105,12 +105,45 @@ function mapUserProfile(raw: any) {
 // Get approved jobs (for users to view)
 router.get('/', async (req, res) => {
     try {
+        const userCity = String(req.query.userCity || '').trim().toLowerCase();
+        const userPincode = String(req.query.userPincode || '').replace(/\D/g, '');
+        const params: Array<string | null> = [
+            userCity.length > 0 ? userCity : null,
+            userPincode.length === 6 ? userPincode : null,
+        ];
+
+        if (params[0] || params[1]) {
+            console.log(`Jobs sort: city=${params[0] ?? 'none'}, pincode=${params[1] ?? 'none'}`);
+        }
+
         const result = await query<any>(
             `SELECT jp.*, r.company_name 
        FROM job_posts jp
        JOIN recruiters r ON jp.recruiter_id = r.id
        WHERE jp.is_active = true AND jp.status = 'approved'
-       ORDER BY jp.created_at DESC`
+       ORDER BY
+         CASE
+           WHEN $1::text IS NOT NULL
+             AND LOWER(TRIM(COALESCE(jp.city, ''))) = $1::text THEN 0
+           WHEN $2::text IS NOT NULL
+             AND REGEXP_REPLACE(COALESCE(jp.pincode, ''), '\\D', '', 'g') = $2::text THEN 1
+           WHEN $2::text IS NOT NULL
+             AND LEFT(REGEXP_REPLACE(COALESCE(jp.pincode, ''), '\\D', '', 'g'), 3) = LEFT($2::text, 3) THEN 2
+           WHEN $1::text IS NOT NULL
+             AND POSITION($1::text IN LOWER(COALESCE(jp.city, ''))) > 0 THEN 3
+           ELSE 9
+         END ASC,
+         CASE
+           WHEN $2::text IS NOT NULL
+             AND REGEXP_REPLACE(COALESCE(jp.pincode, ''), '\\D', '', 'g') ~ '^[0-9]{6}$'
+             THEN ABS(
+               CAST(REGEXP_REPLACE(COALESCE(jp.pincode, ''), '\\D', '', 'g') AS INTEGER) - CAST($2::text AS INTEGER)
+             )
+           ELSE NULL
+         END ASC NULLS LAST,
+         jp.created_at DESC`
+            ,
+            params
         );
 
         res.json(result);
@@ -125,13 +158,23 @@ router.post('/', async (req, res) => {
     try {
         const {
             recruiterId, brand, roleRequired, numberOfPeople, experience,
-            salaryMin, salaryMax, hasIncentive, pincode, city, stayProvided,
+            salaryMin, salaryMax, hasIncentive, pincode, city, state, stayProvided,
             urgency, jobDescription, vehicleCategory, trainingRole
         } = req.body;
 
         const rid = parseInt(String(recruiterId), 10);
         if (!rid || Number.isNaN(rid)) {
             return res.status(400).json({ error: 'Valid recruiterId is required' });
+        }
+
+        const jobState = String(state || '').trim();
+        const jobCity = String(city || '').trim();
+        const jobPincode = String(pincode || '').replace(/\D/g, '');
+        if (!jobState || !jobCity) {
+            return res.status(400).json({ error: 'State and city are required' });
+        }
+        if (!/^\d{6}$/.test(jobPincode)) {
+            return res.status(400).json({ error: 'A valid 6-digit pincode is required' });
         }
 
         const recruiterCheck = await query<{ id: number }>(
@@ -145,13 +188,13 @@ router.post('/', async (req, res) => {
         const result = await query<any>(
             `INSERT INTO job_posts (
         recruiter_id, brand, role_required, number_of_people, experience,
-        salary_min, salary_max, has_incentive, pincode, city, stay_provided,
+        salary_min, salary_max, has_incentive, pincode, city, state, stay_provided,
         urgency, job_description, status, is_active, vehicle_category, training_role
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *`,
             [
                 rid, brand, roleRequired, numberOfPeople, experience,
-                salaryMin, salaryMax, hasIncentive, pincode, city, stayProvided,
+                salaryMin, salaryMax, hasIncentive, jobPincode, jobCity, jobState, stayProvided,
                 urgency, jobDescription, 'pending', true, vehicleCategory || null, trainingRole || null
             ]
         );
@@ -169,9 +212,19 @@ router.put('/:id', async (req, res) => {
         const { id } = req.params;
         const {
             brand, roleRequired, numberOfPeople, experience,
-            salaryMin, salaryMax, hasIncentive, pincode, city, stayProvided,
+            salaryMin, salaryMax, hasIncentive, pincode, city, state, stayProvided,
             urgency, jobDescription, vehicleCategory, trainingRole
         } = req.body;
+
+        const jobState = String(state || '').trim();
+        const jobCity = String(city || '').trim();
+        const jobPincode = String(pincode || '').replace(/\D/g, '');
+        if (!jobState || !jobCity) {
+            return res.status(400).json({ error: 'State and city are required' });
+        }
+        if (!/^\d{6}$/.test(jobPincode)) {
+            return res.status(400).json({ error: 'A valid 6-digit pincode is required' });
+        }
 
         // Check current status
         const currentJob = await query<any>('SELECT status FROM job_posts WHERE id = $1', [id]);
@@ -188,12 +241,12 @@ router.put('/:id', async (req, res) => {
             `UPDATE job_posts SET 
         brand = $1, role_required = $2, number_of_people = $3, experience = $4,
         salary_min = $5, salary_max = $6, has_incentive = $7, pincode = $8, city = $9, 
-        stay_provided = $10, urgency = $11, job_description = $12, vehicle_category = $13,
-        training_role = $14, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $15`,
+        state = $10, stay_provided = $11, urgency = $12, job_description = $13, vehicle_category = $14,
+        training_role = $15, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $16`,
             [
                 brand, roleRequired, numberOfPeople, experience,
-                salaryMin, salaryMax, hasIncentive, pincode, city, stayProvided,
+                salaryMin, salaryMax, hasIncentive, jobPincode, jobCity, jobState, stayProvided,
                 urgency, jobDescription, vehicleCategory || null, trainingRole || null, id
             ]
         );

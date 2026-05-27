@@ -337,5 +337,9 @@
   "hoursAgoOne": "1 గంట క్రితం",
   "daysAgoNews": "{{count}} రోజుల క్రితం",
   "daysAgoOne": "1 రోజు క్రితం",
-  "tabAppliedShort": "దరఖాస్తు"
+  "tabAppliedShort": "దరఖాస్తు",
+  "confirmApplication": "దరఖాస్తును నిర్ధారించండి",
+  "confirmApplicationDesc": "దరఖాస్తు చేయడానికి ముందు ఉద్యోగ వివరాలను చూడండి.",
+  "cancel": "రద్దు",
+  "confirm": "నిర్ధారించు"
 }

@@ -337,5 +337,9 @@
   "hoursAgoOne": "१ तासापूर्वी",
   "daysAgoNews": "{{count}} दिवसांपूर्वी",
   "daysAgoOne": "१ दिवसापूर्वी",
-  "tabAppliedShort": "अर्ज"
+  "tabAppliedShort": "अर्ज",
+  "confirmApplication": "अर्जाची पुष्टी करा",
+  "confirmApplicationDesc": "अर्ज करण्यापूर्वी नोकरीचे तपशील पहा.",
+  "cancel": "रद्द करा",
+  "confirm": "पुष्टी करा"
 }

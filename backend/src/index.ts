@@ -26,7 +26,8 @@ app.use(express.json());
 
 // Request logging
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    console.log(`${new Date().toISOString()} ${req.method} ${req.path}${query}`);
     next();
 });
 

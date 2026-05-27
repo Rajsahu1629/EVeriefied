@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { ArrowLeft, MapPin, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
@@ -23,6 +23,8 @@ import { Select } from '../components/ui/Select';
 import { Checkbox } from '../components/ui/Checkbox';
 import { Progress } from '../components/ui/Progress';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
+import { LocationFields } from '../components/LocationFields';
+import { validateLocationFields } from '../lib/indiaLocations';
 import { createJob, updateJob } from '../lib/api';
 
 type PostJobNavigationProp = StackNavigationProp<RootStackParamList, 'PostJob'>;
@@ -76,6 +78,7 @@ const PostJobScreen: React.FC = () => {
         hasIncentive: existingJob?.has_incentive || false,
         pincode: existingJob?.pincode || '',
         city: existingJob?.city || '',
+        state: existingJob?.state || '',
         stayProvided: existingJob?.stay_provided || false,
         urgency: existingJob?.urgency || 'within_7_days',
         jobDescription: existingJob?.job_description || '',
@@ -175,12 +178,13 @@ const PostJobScreen: React.FC = () => {
 
         if (!formData.salaryMin) newErrors.salaryMin = t('required');
         if (!formData.salaryMax) newErrors.salaryMax = t('required');
-        if (!formData.pincode) {
-            newErrors.pincode = t('required');
-        } else if (formData.pincode.length !== 6) {
-            newErrors.pincode = t('invalidPincode');
-        }
-        if (!formData.city) newErrors.city = t('required');
+        Object.assign(
+            newErrors,
+            validateLocationFields(formData.state, formData.city, formData.pincode, {
+                required: t('required'),
+                invalidPincode: t('invalidPincode'),
+            })
+        );
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -218,6 +222,7 @@ const PostJobScreen: React.FC = () => {
                 hasIncentive: formData.hasIncentive,
                 pincode: formData.pincode,
                 city: formData.city,
+                state: formData.state,
                 stayProvided: formData.stayProvided,
                 urgency: formData.urgency,
                 jobDescription: formData.jobDescription,
@@ -377,23 +382,26 @@ const PostJobScreen: React.FC = () => {
                 </Text>
             </TouchableOpacity>
 
-            <Input
-                label={t('pincode')}
-                placeholder="123456"
-                keyboardType="number-pad"
-                value={formData.pincode}
-                onChangeText={(v) => updateField('pincode', v)}
-                error={errors.pincode}
-                maxLength={6}
-                leftIcon={<MapPin size={20} color={colors.muted} />}
-            />
-
-            <Input
-                label={t('city')}
-                placeholder={t('enterCity')}
-                value={formData.city}
-                onChangeText={(v) => updateField('city', v)}
-                error={errors.city}
+            <LocationFields
+                values={{
+                    state: formData.state,
+                    city: formData.city,
+                    pincode: formData.pincode,
+                }}
+                onChange={(field, value) => updateField(field, value)}
+                errors={{
+                    state: errors.state,
+                    city: errors.city,
+                    pincode: errors.pincode,
+                }}
+                labels={{
+                    state: t('state'),
+                    city: t('city'),
+                    pincode: t('pincode'),
+                    selectState: t('selectState'),
+                    selectCity: t('selectCity'),
+                    selectStateFirst: t('selectState'),
+                }}
             />
 
             <TouchableOpacity

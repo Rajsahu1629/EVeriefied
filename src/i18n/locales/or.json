@@ -337,5 +337,9 @@
   "hoursAgoOne": "1 ଘଣ୍ଟା ପୂର୍ବେ",
   "daysAgoNews": "{{count}} ଦିନ ପୂର୍ବେ",
   "daysAgoOne": "1 ଦିନ ପୂର୍ବେ",
-  "tabAppliedShort": "ଆବେଦନ"
+  "tabAppliedShort": "ଆବେଦନ",
+  "confirmApplication": "ଆବେଦନ ନିଶ୍ଚିତ କରନ୍ତୁ",
+  "confirmApplicationDesc": "ଆବେଦନ କରିବା ପୂର୍ବରୁ ଚାକିରିର ବିବରଣୀ ଦେଖନ୍ତୁ।",
+  "cancel": "ବାତିଲ୍",
+  "confirm": "ନିଶ୍ଚିତ କରନ୍ତୁ"
 }

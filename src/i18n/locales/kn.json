@@ -345,5 +345,9 @@
   "hoursAgoOne": "೧ ಗಂಟೆಯ ಹಿಂದೆ",
   "daysAgoNews": "{{count}} ದಿನಗಳ ಹಿಂದೆ",
   "daysAgoOne": "೧ ದಿನದ ಹಿಂದೆ",
-  "tabAppliedShort": "ಅರ್ಜಿಗಳು"
+  "tabAppliedShort": "ಅರ್ಜಿಗಳು",
+  "confirmApplication": "ಅರ್ಜಿಯನ್ನು ದೃಢೀಕರಿಸಿ",
+  "confirmApplicationDesc": "ಅರ್ಜಿ ಸಲ್ಲಿಸುವ ಮೊದಲು ಉದ್ಯೋಗ ವಿವರಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.",
+  "cancel": "ರದ್ದು",
+  "confirm": "ದೃಢೀಕರಿಸಿ"
 }

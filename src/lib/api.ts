@@ -144,8 +144,16 @@ export async function registerRecruiter(recruiterData: {
 
 // ============ JOBS ============
 
-export async function getApprovedJobs() {
-    return request<any[]>('/jobs');
+export async function getApprovedJobs(filters?: { userCity?: string; userPincode?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.userCity?.trim()) {
+        params.append('userCity', filters.userCity.trim());
+    }
+    if (filters?.userPincode?.trim()) {
+        params.append('userPincode', filters.userPincode.trim());
+    }
+    const qs = params.toString();
+    return request<any[]>(`/jobs${qs ? `?${qs}` : ''}`);
 }
 
 export async function createJob(recruiterId: number, jobData: {
@@ -158,6 +166,7 @@ export async function createJob(recruiterId: number, jobData: {
     hasIncentive: boolean;
     pincode: string;
     city: string;
+    state: string;
     stayProvided: boolean;
     urgency: string;
     jobDescription?: string;

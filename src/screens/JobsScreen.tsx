@@ -10,6 +10,7 @@ import {
     Alert,
     StatusBar,
     TextInput,
+    Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -57,7 +58,7 @@ interface JobPost {
 }
 
 export default function JobsScreen() {
-    const { userData } = useUser();
+    const { userData, isLoading: isUserLoading } = useUser();
     const { t } = useLanguage();
     const [jobs, setJobs] = useState<JobPost[]>([]);
     const [appliedJobs, setAppliedJobs] = useState<Set<number>>(new Set());
@@ -65,6 +66,7 @@ export default function JobsScreen() {
     const [refreshing, setRefreshing] = useState(false);
 
     const [applyingTo, setApplyingTo] = useState<number | null>(null);
+    const [jobToApply, setJobToApply] = useState<JobPost | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredJobs, setFilteredJobs] = useState<JobPost[]>([]);
     const [salaryFilter, setSalaryFilter] = useState<number | null>(null); // Min salary filter
@@ -72,14 +74,17 @@ export default function JobsScreen() {
     // Fetch jobs from API
     const fetchJobs = useCallback(async () => {
         try {
-            const result = await getApprovedJobs();
+            const result = await getApprovedJobs({
+                userCity: userData?.city,
+                userPincode: userData?.pincode,
+            });
             setJobs(result);
             setFilteredJobs(result);
         } catch (error) {
             console.error('Error fetching jobs:', error);
             Alert.alert(t('error'), t('failedToLoadJobs'));
         }
-    }, [t]);
+    }, [t, userData?.city, userData?.pincode]);
 
     // Fetch user's applied jobs
     const fetchAppliedJobs = useCallback(async () => {
@@ -93,15 +98,19 @@ export default function JobsScreen() {
         }
     }, [userData?.id]);
 
-    // Initial load
+    // Initial load — wait for stored user session so location params are sent to backend
     useEffect(() => {
+        if (isUserLoading) {
+            return;
+        }
+
         const loadData = async () => {
             setLoading(true);
             await Promise.all([fetchJobs(), fetchAppliedJobs()]);
             setLoading(false);
         };
         loadData();
-    }, [fetchJobs, fetchAppliedJobs]);
+    }, [fetchJobs, fetchAppliedJobs, isUserLoading]);
 
     // Pull to refresh
     const onRefresh = async () => {
@@ -110,18 +119,34 @@ export default function JobsScreen() {
         setRefreshing(false);
     };
 
-    // Apply to job
-    const handleApply = async (jobId: number) => {
+    const formatJobLocation = (job: JobPost) =>
+        job.city
+            ? `${job.city}${job.pincode ? ` (${job.pincode})` : ''}`
+            : job.pincode || t('locationTbd');
+
+    const openApplyConfirm = (job: JobPost) => {
         if (!userData?.id) {
             Alert.alert(t('error'), t('loginToApply'));
             return;
         }
+        if (appliedJobs.has(job.id)) {
+            return;
+        }
+        setJobToApply(job);
+    };
 
+    const confirmApply = async () => {
+        if (!jobToApply || !userData?.id) {
+            return;
+        }
+
+        const jobId = jobToApply.id;
         setApplyingTo(jobId);
 
         try {
             await applyToJob(userData.id, jobId);
             setAppliedJobs(prev => new Set([...prev, jobId]));
+            setJobToApply(null);
         } catch (error) {
             console.error('Error applying to job:', error);
             Alert.alert(t('error'), t('failedToApply'));
@@ -283,7 +308,7 @@ export default function JobsScreen() {
                         styles.applyButton,
                         isApplied && styles.appliedButton
                     ]}
-                    onPress={() => handleApply(item.id)}
+                    onPress={() => openApplyConfirm(item)}
                     disabled={isApplied || isApplying}
                 >
                     {isApplying ? (
@@ -396,6 +421,77 @@ export default function JobsScreen() {
                     ListEmptyComponent={EmptyState}
                 />
             )}
+
+            <Modal
+                visible={jobToApply !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => !applyingTo && setJobToApply(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>{t('confirmApplication')}</Text>
+                        <Text style={styles.modalSubtitle}>{t('confirmApplicationDesc')}</Text>
+
+                        {jobToApply ? (
+                            <View style={styles.modalSummary}>
+                                <View style={styles.modalRow}>
+                                    <Briefcase size={18} color={colors.primary} />
+                                    <View style={styles.modalRowText}>
+                                        <Text style={styles.modalLabel}>{t('jobRole')}</Text>
+                                        <Text style={styles.modalValue}>
+                                            {getRoleLabel(jobToApply.role_required)}
+                                            {jobToApply.brand ? ` · ${jobToApply.brand}` : ''}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <MapPin size={18} color="#ef4444" />
+                                    <View style={styles.modalRowText}>
+                                        <Text style={styles.modalLabel}>{t('location')}</Text>
+                                        <Text style={styles.modalValue}>
+                                            {formatJobLocation(jobToApply)}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <IndianRupee size={18} color={colors.primary} />
+                                    <View style={styles.modalRowText}>
+                                        <Text style={styles.modalLabel}>{t('salary')}</Text>
+                                        <Text style={styles.modalValue}>
+                                            {formatJobSalary(
+                                                jobToApply.salary_min,
+                                                jobToApply.salary_max,
+                                                t
+                                            )}{' '}
+                                            {t('perMonth')}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                        ) : null}
+
+                        <TouchableOpacity
+                            style={styles.modalConfirmButton}
+                            onPress={confirmApply}
+                            disabled={applyingTo !== null}
+                        >
+                            {applyingTo !== null ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                                <Text style={styles.modalConfirmText}>{t('confirm')}</Text>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.modalCancelButton}
+                            onPress={() => setJobToApply(null)}
+                            disabled={applyingTo !== null}
+                        >
+                            <Text style={styles.modalCancelText}>{t('cancel')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -743,5 +839,87 @@ const styles = StyleSheet.create({
     filterChipTextActive: {
         color: '#fff',
         fontWeight: '600',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: spacing.lg,
+    },
+    modalCard: {
+        backgroundColor: colors.card,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    modalTitle: {
+        fontSize: fontSize.lg,
+        fontWeight: '700',
+        color: colors.foreground,
+        textAlign: 'center',
+    },
+    modalSubtitle: {
+        fontSize: fontSize.sm,
+        color: colors.muted,
+        textAlign: 'center',
+        marginTop: spacing.xs,
+        marginBottom: spacing.md,
+    },
+    modalSummary: {
+        gap: spacing.sm,
+        marginBottom: spacing.lg,
+        padding: spacing.md,
+        backgroundColor: '#f8fafc',
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    modalRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing.sm,
+    },
+    modalRowText: {
+        flex: 1,
+    },
+    modalLabel: {
+        fontSize: fontSize.xs,
+        color: colors.muted,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+    },
+    modalValue: {
+        fontSize: fontSize.sm,
+        color: colors.foreground,
+        fontWeight: '600',
+        marginTop: 2,
+    },
+    modalConfirmButton: {
+        backgroundColor: colors.primary,
+        minHeight: layout.buttonHeight,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalConfirmText: {
+        fontSize: fontSize.sm,
+        fontWeight: '600',
+        color: '#fff',
+    },
+    modalCancelButton: {
+        minHeight: layout.buttonHeight,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    modalCancelText: {
+        fontSize: fontSize.sm,
+        fontWeight: '600',
+        color: colors.muted,
     },
 });
