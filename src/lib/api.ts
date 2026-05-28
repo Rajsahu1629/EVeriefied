@@ -30,10 +30,21 @@ async function request<T>(
 
     try {
         const response = await fetch(url, config);
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        const isJson = contentType.includes('application/json');
+        const payloadText = await response.text();
+        const data = isJson && payloadText ? JSON.parse(payloadText) : payloadText;
 
         if (!response.ok) {
-            throw new Error(data.error || 'Request failed');
+            const serverMessage =
+                typeof data === 'object' && data && 'error' in data
+                    ? String((data as { error?: string }).error || '')
+                    : '';
+            throw new Error(serverMessage || `Request failed (${response.status}) for ${endpoint}`);
+        }
+
+        if (!isJson) {
+            throw new Error(`Invalid API response for ${endpoint}. Expected JSON but received ${contentType || 'non-JSON'}.`);
         }
 
         return data;

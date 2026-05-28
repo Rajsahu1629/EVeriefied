@@ -135,7 +135,7 @@ export default function HiringHubCompanyScreen() {
                 <Text style={styles.phoneText}>{company.recruiter_phone || '—'}</Text>
             </TouchableOpacity>
 
-            <Text style={styles.hintText}>Tap a vacancy to view applicants and update hiring status.</Text>
+            <Text style={styles.hintText}>Tap a vacancy to view applicants and update each candidate stage.</Text>
 
             <FlatList
                 data={company.jobs}

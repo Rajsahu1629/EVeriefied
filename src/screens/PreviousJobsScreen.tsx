@@ -295,10 +295,15 @@ const PreviousJobsScreen: React.FC = () => {
                                 <View style={styles.cardFooter}>
                                     <TouchableOpacity
                                         style={styles.applicantInfo}
-                                        onPress={() => navigation.navigate('JobApplicants', {
+                                        onPress={() => navigation.navigate('AdminVacancyApplicants', {
                                             jobId: job.id,
-                                            jobTitle: `${getRoleLabel(job.role_required)}${job.vehicle_category ? ` (${job.vehicle_category})` : ''}`
-                                        } as any)}
+                                            brand: job.brand || '—',
+                                            roleRequired: `${getRoleLabel(job.role_required)}${job.vehicle_category ? ` (${job.vehicle_category})` : ''}`,
+                                            city: job.city || '',
+                                            companyName: recruiterData?.companyName || job.brand || 'Recruiter',
+                                            scope: 'recruiter',
+                                            recruiterId: Number(recruiterData?.id),
+                                        })}
                                     >
                                         <Users size={14} color={colors.primary} />
                                         <Text style={[styles.applicantText, { color: colors.primary, textDecorationLine: 'underline' }]}>

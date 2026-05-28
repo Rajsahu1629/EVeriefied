@@ -79,111 +79,336 @@ function formatLocation(user: UserData): string {
 }
 
 function parseBrands(user: UserData): string[] {
-    let raw = user.brands;
+    let raw: unknown = user.brands;
     if (!raw) return [];
     if (typeof raw === 'string') {
         try {
             raw = JSON.parse(raw);
         } catch {
-            return raw ? [raw] : [];
+            return raw ? [String(raw)] : [];
         }
     }
     if (!Array.isArray(raw)) return [];
-    return raw.filter((b) => b && String(b).trim() && b !== 'Other');
+    return raw.filter((b) => b && String(b).trim() && b !== 'Other').map((b) => String(b));
 }
 
 function getCareerObjective(user: UserData, roleTitle: string): string {
-    const isBs6 =
-        user.domain === 'BS6' ||
-        (user.role === 'technician' && roleTitle.toLowerCase().includes('bs6'));
+  const isBs6 =
+      user.domain === 'BS6' ||
+      (user.role === 'technician' && roleTitle.toLowerCase().includes('bs6'));
+  const title = roleTitle.toLowerCase();
 
-    if (user.role === 'sales') {
-        return (
-            `Experienced ${roleTitle} with strong knowledge in customer engagement, vehicle sales, ` +
-            `test rides, and showroom operations. Seeking an opportunity to utilize sales expertise ` +
-            `and contribute to the growth of the automobile industry.`
-        );
-    }
-    if (user.role === 'workshop') {
-        return (
-            `Experienced ${roleTitle} with expertise in workshop management, team coordination, ` +
-            `service operations, and customer satisfaction. Seeking an opportunity to lead service ` +
-            `teams and improve workshop efficiency in the automobile sector.`
-        );
-    }
-    if (user.role === 'aspirant') {
-        return (
-            `Motivated EV/BS6 sector aspirant eager to build a career in the automobile industry. ` +
-            `Committed to learning technical skills, workshop discipline, and professional service standards.`
-        );
-    }
-    if (isBs6) {
-        return (
-            'Experienced BS6 Automobile Technician with strong knowledge in vehicle servicing, engine diagnosis, ' +
-            'electrical systems, maintenance, and workshop operations. Seeking an opportunity to utilize ' +
-            'technical expertise and contribute to the growth of the automobile industry.'
-        );
-    }
-    return (
-        'Experienced EV Automobile Technician with strong knowledge in electric vehicle servicing, battery systems, ' +
-        'diagnostics, preventive maintenance, and workshop operations. Seeking an opportunity to utilize technical ' +
-        'expertise and contribute to the growth of the electric mobility industry.'
-    );
+  const hasAny = (keywords: string[]) => keywords.some((k) => title.includes(k));
+
+  // ── SHOWROOM TRACK ──────────────────────────────────────────────────────────
+
+  // CRE – Customer Relationship Executive (calling / follow-up focused)
+  if (hasAny(['cre', 'customer relationship'])) {
+      return (
+          `Proactive ${roleTitle} with hands-on experience in outbound/inbound calling, ` +
+          `lead follow-up, appointment scheduling, and customer query resolution. ` +
+          `Skilled at maintaining CRM records, nurturing prospects through the sales funnel, ` +
+          `and coordinating with the showroom team to ensure timely test rides and bookings. ` +
+          `Seeking to maximize lead conversion and deliver exceptional pre- and post-sales communication.`
+      );
+  }
+
+  // Sales Executive – walk-in, test ride, deal closure
+  if (hasAny(['sales executive'])) {
+      return (
+          `Target-driven ${roleTitle} experienced in handling walk-in customers, explaining ` +
+          `vehicle features and variants, conducting test rides, processing loan/finance documentation, ` +
+          `and closing deals. Adept at building customer trust, achieving monthly sales targets, ` +
+          `and contributing to showroom revenue growth in a competitive automobile market.`
+      );
+  }
+
+  // ── WORKSHOP TRACK ──────────────────────────────────────────────────────────
+
+  // Service Advisor – front desk, job card, customer interface
+  if (hasAny(['service advisor'])) {
+      return (
+          `Customer-focused ${roleTitle} with expertise in vehicle check-in, job card creation, ` +
+          `service estimation, and delivery coordination. Skilled at explaining repair requirements ` +
+          `to customers, managing technician task allocation, tracking job progress, and ensuring ` +
+          `vehicles are delivered on time with zero pending complaints. ` +
+          `Seeking to enhance customer satisfaction scores and first-visit resolution rates.`
+      );
+  }
+
+  // Service Manager – team leadership, KPI, escalation handling
+  if (hasAny(['service manager'])) {
+      return (
+          `Results-oriented ${roleTitle} with proven ability to manage workshop teams, monitor ` +
+          `daily job card throughput, control parts inventory, and resolve escalated customer issues. ` +
+          `Experienced in driving service revenue, maintaining OEM audit compliance, and coaching ` +
+          `advisors and technicians to improve efficiency, quality, and customer retention metrics.`
+      );
+  }
+
+  // Floor Supervisor – bay management, technician supervision
+  if (hasAny(['floor supervisor'])) {
+      return (
+          `Detail-oriented ${roleTitle} with strong experience in bay-level supervision, ` +
+          `technician productivity monitoring, quality checks, and on-floor issue resolution. ` +
+          `Skilled at ensuring workshop discipline, tool/equipment upkeep, and adherence to ` +
+          `standard repair times. Seeking to maintain high first-time-fix rates and smooth ` +
+          `daily workshop operations.`
+      );
+  }
+
+  // Spare Parts – inventory, billing, vendor coordination
+  if (hasAny(['spare part', 'parts'])) {
+      return (
+          `Organized ${roleTitle} with expertise in spare parts inventory management, bin allocation, ` +
+          `parts indent and billing, vendor follow-up, and stock reconciliation. ` +
+          `Skilled at ensuring zero stockout for fast-moving parts, managing warranty returns, ` +
+          `and supporting workshop operations with timely parts availability to minimize vehicle downtime.`
+      );
+  }
+
+// Fleet Manager – B2B, AMC, bulk servicing
+if (hasAny(['fleet manager', 'fleet'])) {
+  return (
+      `Seasoned ${roleTitle} with proven expertise in managing large-scale vehicle fleets, ` +
+      `scheduling preventive maintenance, and handling AMC/service contracts for corporate and ` +
+      `institutional clients. Adept at minimizing vehicle downtime, maintaining service records, ` +
+      `coordinating with workshop teams, and delivering cost-effective fleet solutions. ` +
+      `Seeking to drive operational excellence and long-term client retention in the automobile sector.`
+  );
+}
+
+  // Workshop (generic fallback)
+  if (hasAny(['workshop'])) {
+      return (
+          `Dedicated ${roleTitle} with hands-on knowledge of service workflow, job card handling, ` +
+          `team coordination, and customer issue resolution. Seeking to strengthen workshop efficiency, ` +
+          `service quality, and turnaround time in daily operations.`
+      );
+  }
+
+  // ── AREA / REGIONAL OPERATIONS ──────────────────────────────────────────────
+
+  if (hasAny(['area service manager', 'asm'])) {
+      return (
+          `Experienced ${roleTitle} focused on multi-location service coordination, workshop performance monitoring, ` +
+          `and field-level process improvement. Seeking to drive consistent service quality, faster issue closure, ` +
+          `and stronger customer retention across assigned regions.`
+      );
+  }
+
+  // ── ROLE-BASED FALLBACKS ─────────────────────────────────────────────────────
+
+  if (user.role === 'sales') {
+      return (
+          `Experienced ${roleTitle} with strong knowledge in customer engagement, vehicle sales, ` +
+          `test rides, and showroom operations. Seeking an opportunity to utilize sales expertise ` +
+          `and contribute to the growth of the automobile industry.`
+      );
+  }
+  if (user.role === 'workshop') {
+      return (
+          `Experienced ${roleTitle} with expertise in workshop management, team coordination, ` +
+          `service operations, and customer satisfaction. Seeking an opportunity to lead service ` +
+          `teams and improve workshop efficiency in the automobile sector.`
+      );
+  }
+  if (user.role === 'aspirant') {
+      return (
+          `Motivated EV/BS6 sector aspirant eager to build a career in the automobile industry. ` +
+          `Committed to learning technical skills, workshop discipline, and professional service standards.`
+      );
+  }
+  if (isBs6) {
+      return (
+          'Experienced BS6 Automobile Technician with strong knowledge in vehicle servicing, engine diagnosis, ' +
+          'electrical systems, maintenance, and workshop operations. Seeking an opportunity to utilize ' +
+          'technical expertise and contribute to the growth of the automobile industry.'
+      );
+  }
+  return (
+      'Experienced EV Automobile Technician with strong knowledge in electric vehicle servicing, battery systems, ' +
+      'diagnostics, preventive maintenance, and workshop operations. Seeking an opportunity to utilize technical ' +
+      'expertise and contribute to the growth of the electric mobility industry.'
+  );
 }
 
 function getTechnicalSkills(user: UserData, roleTitle: string): string[] {
-    const isBs6 =
-        user.domain === 'BS6' ||
-        (user.role === 'technician' && roleTitle.toLowerCase().includes('bs6'));
+  const isBs6 =
+      user.domain === 'BS6' ||
+      (user.role === 'technician' && roleTitle.toLowerCase().includes('bs6'));
+  const title = roleTitle.toLowerCase();
 
-    if (user.role === 'sales') {
-        return [
-            'Customer Handling & Product Presentation',
-            'Test Ride & Vehicle Demonstration',
-            'Lead Follow-up & CRM Basics',
-            'EV/BS6 Product Knowledge',
-            'Showroom Operations & Documentation',
-            'Negotiation & Closing Skills',
-        ];
-    }
-    if (user.role === 'workshop') {
-        return [
-            'Workshop Operations & Bay Management',
-            'Team Supervision & Job Allocation',
-            'Service Quality & Customer Satisfaction',
-            'Inventory & Spare Parts Coordination',
-            'Job Card Discipline & Billing Cycle',
-            'EV/BS6 Service Process Knowledge',
-        ];
-    }
-    if (user.role === 'aspirant') {
-        return [
-            'Basic Automobile & EV Awareness',
-            'Workshop Safety & Discipline',
-            'Tool Handling Fundamentals',
-            'Willingness to Learn & Adapt',
-            'Teamwork & Communication',
-            'Customer Service Mindset',
-        ];
-    }
-    if (isBs6) {
-        return [
-            'BS6 Vehicle Service & Maintenance',
-            'Engine Diagnosis & Repair',
-            'ECU Scanning & Fault Diagnosis',
-            'Periodic Service & Inspection',
-            'Brake & Suspension Repair',
-            'Customer Complaint Handling',
-        ];
-    }
-    return [
-        'EV Vehicle Service & Maintenance',
-        'High Voltage Safety & Battery Systems',
-        'Motor & Controller Diagnostics',
-        'Charging System Inspection',
-        'Periodic Service & Inspection',
-        'Customer Complaint Handling',
-    ];
+  const hasAny = (keywords: string[]) => keywords.some((k) => title.includes(k));
+
+  // ── SHOWROOM TRACK ──────────────────────────────────────────────────────────
+
+  // CRE – calling, follow-up, CRM
+  if (hasAny(['cre', 'customer relationship'])) {
+      return [
+          'Outbound & Inbound Calling',
+          'Lead Follow-up & Prospect Nurturing',
+          'Appointment Scheduling & Test Ride Booking',
+          'CRM Data Entry & Pipeline Management',
+          'Customer Query Resolution',
+          'Coordination with Sales & Showroom Team',
+      ];
+  }
+
+  // Sales Executive – walk-in, demo, closure
+  if (hasAny(['sales executive'])) {
+      return [
+          'Walk-in Customer Handling & Product Presentation',
+          'Vehicle Feature & Variant Explanation',
+          'Test Ride Coordination & Demonstration',
+          'Finance / Loan Documentation Assistance',
+          'Deal Negotiation & Closing',
+          'Target Achievement & Monthly Reporting',
+      ];
+  }
+
+  // ── WORKSHOP TRACK ──────────────────────────────────────────────────────────
+
+  // Service Advisor – front desk, job card, delivery
+  if (hasAny(['service advisor'])) {
+      return [
+          'Vehicle Check-in & Condition Assessment',
+          'Job Card Creation & Service Estimation',
+          'Technician Task Allocation & Follow-up',
+          'Customer Communication & Update Calls',
+          'Vehicle Delivery & Invoice Explanation',
+          'First Visit Resolution & Complaint Handling',
+      ];
+  }
+
+  // Service Manager – team, KPI, compliance
+  if (hasAny(['service manager'])) {
+      return [
+          'Workshop Team Leadership & Supervision',
+          'Daily Job Card Throughput Monitoring',
+          'Service Revenue Tracking & Target Management',
+          'Customer Escalation Handling & Retention',
+          'OEM Audit Compliance & Process Adherence',
+          'Advisor & Technician Coaching',
+      ];
+  }
+
+  // Floor Supervisor – bay, technicians, quality
+  if (hasAny(['floor supervisor'])) {
+      return [
+          'Bay-level Supervision & Workflow Management',
+          'Technician Productivity & Time Monitoring',
+          'Quality Check & Pre-delivery Inspection',
+          'Tool & Equipment Upkeep',
+          'Standard Repair Time (SRT) Adherence',
+          'On-floor Issue Resolution & Escalation',
+      ];
+  }
+
+  // Spare Parts – inventory, billing, indent
+  if (hasAny(['spare part', 'parts'])) {
+      return [
+          'Parts Inventory Management & Bin Allocation',
+          'Indent Raising & Vendor Coordination',
+          'Parts Billing & Invoice Processing',
+          'Fast-moving Stock Monitoring & Replenishment',
+          'Warranty Parts Return & Documentation',
+          'Workshop Parts Supply & Downtime Reduction',
+      ];
+  }
+
+  // Fleet Manager – B2B, AMC, bulk service
+// Fleet Manager – B2B, AMC, bulk service
+if (hasAny(['fleet manager', 'fleet'])) {
+  return [
+      'Preventive Maintenance Planning & Scheduling',
+      'AMC / Service Contract Management',
+      'Corporate & Institutional Client Handling',
+      'Vehicle Downtime Tracking & Reduction',
+      'Multi-vehicle Service History & Records',
+      'Workshop Coordination & Bulk Job Prioritization',
+  ];
+}
+
+  // Workshop generic fallback
+  if (hasAny(['workshop'])) {
+      return [
+          'Workshop Operations & Bay Management',
+          'Team Supervision & Job Allocation',
+          'Service Quality & Customer Satisfaction',
+          'Inventory & Spare Parts Coordination',
+          'Job Card Discipline & Billing Cycle',
+          'EV/BS6 Service Process Knowledge',
+      ];
+  }
+
+  // ── AREA / REGIONAL OPERATIONS ──────────────────────────────────────────────
+
+  if (hasAny(['area service manager', 'asm'])) {
+      return [
+          'Multi-location Workshop Performance Monitoring',
+          'Field-level Process Auditing & Improvement',
+          'Dealer Service Team Coaching',
+          'Regional Customer Complaint Resolution',
+          'Spare Parts & Inventory Oversight',
+          'Service Revenue & KPI Reporting',
+      ];
+  }
+
+  // ── ROLE-BASED FALLBACKS ─────────────────────────────────────────────────────
+
+  if (user.role === 'sales') {
+      return [
+          'Customer Handling & Product Presentation',
+          'Test Ride & Vehicle Demonstration',
+          'Lead Follow-up & CRM Basics',
+          'EV/BS6 Product Knowledge',
+          'Showroom Operations & Documentation',
+          'Negotiation & Closing Skills',
+      ];
+  }
+
+  if (user.role === 'workshop') {
+      return [
+          'Workshop Operations & Bay Management',
+          'Team Supervision & Job Allocation',
+          'Service Quality & Customer Satisfaction',
+          'Inventory & Spare Parts Coordination',
+          'Job Card Discipline & Billing Cycle',
+          'EV/BS6 Service Process Knowledge',
+      ];
+  }
+
+  if (user.role === 'aspirant') {
+      return [
+          'Basic Automobile & EV Awareness',
+          'Workshop Safety & Discipline',
+          'Tool Handling Fundamentals',
+          'Willingness to Learn & Adapt',
+          'Teamwork & Communication',
+          'Customer Service Mindset',
+      ];
+  }
+
+  if (isBs6) {
+      return [
+          'BS6 Vehicle Service & Maintenance',
+          'Engine Diagnosis & Repair',
+          'ECU Scanning & Fault Diagnosis',
+          'Periodic Service & Inspection',
+          'Brake & Suspension Repair',
+          'Customer Complaint Handling',
+      ];
+  }
+
+  return [
+      'EV Vehicle Service & Maintenance',
+      'High Voltage Safety & Battery Systems',
+      'Motor & Controller Diagnostics',
+      'Charging System Inspection',
+      'Periodic Service & Inspection',
+      'Customer Complaint Handling',
+  ];
 }
 
 function formatQualification(qual: string | undefined, labels: ResumeLabels): string {
@@ -240,7 +465,8 @@ export function buildResumeHtml(params: {
   <style>
     @page {
       size: A4 portrait;
-      margin: 10mm 12mm;
+      /* Shift the whole PDF content down and slightly right */
+      margin: 24mm 12mm 10mm 15mm;
     }
     * {
       box-sizing: border-box;
@@ -255,14 +481,16 @@ export function buildResumeHtml(params: {
     body {
       font-family: Arial, Helvetica, 'Segoe UI', sans-serif;
       color: #1a1a1a;
-      font-size: 9.5pt;
-      line-height: 1.28;
+      font-size: 10.5pt;
+      line-height: 1.34;
     }
     .resume-page {
-      max-height: 277mm;
+      max-height: 272mm;
       overflow: hidden;
       page-break-after: avoid;
       page-break-inside: avoid;
+      padding-top: 4mm;
+      padding-left: 3mm;
     }
     .resume-page section,
     .resume-page header,
@@ -274,14 +502,14 @@ export function buildResumeHtml(params: {
 
     .header { margin-bottom: 2px; }
     h1.name {
-      font-size: 17pt;
+      font-size: 18pt;
       font-weight: 700;
       margin: 0 0 2px;
       color: #111;
       letter-spacing: 0.2px;
     }
     p.role-title {
-      font-size: 10.5pt;
+      font-size: 11.5pt;
       font-weight: 600;
       color: #333;
       margin: 0 0 4px;
@@ -291,10 +519,10 @@ export function buildResumeHtml(params: {
       align-items: center;
       gap: 5px;
       margin: 2px 0;
-      font-size: 9pt;
+      font-size: 10pt;
       color: #333;
     }
-    .contact-icon { font-size: 9pt; }
+    .contact-icon { font-size: 10pt; }
     .divider {
       border: none;
       border-top: 1px solid #c5c5c5;
@@ -303,7 +531,7 @@ export function buildResumeHtml(params: {
 
     section { margin: 0; }
     h2.section-title {
-      font-size: 10pt;
+      font-size: 11pt;
       font-weight: 700;
       color: #111;
       margin: 0 0 3px;
@@ -322,7 +550,7 @@ export function buildResumeHtml(params: {
       color: #111;
     }
     h3.sub-title {
-      font-size: 9.5pt;
+      font-size: 10.5pt;
       font-weight: 700;
       margin: 4px 0 2px;
       color: #111;
@@ -336,7 +564,7 @@ export function buildResumeHtml(params: {
 
     .declaration-sign {
       margin-top: 6px;
-      font-size: 9pt;
+      font-size: 10pt;
       color: #222;
     }
     .sign-line { margin: 3px 0; }

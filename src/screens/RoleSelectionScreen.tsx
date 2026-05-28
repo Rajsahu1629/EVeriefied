@@ -224,8 +224,9 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: colors.primary,
-        paddingTop: spacing.xl,
-        paddingBottom: spacing.xl,
+        paddingTop: spacing.xl + spacing.md,
+        // Extend green hero section slightly lower for better visual balance
+        paddingBottom: spacing.xl + spacing.lg,
         paddingHorizontal: spacing.lg,
         alignItems: 'center',
     },

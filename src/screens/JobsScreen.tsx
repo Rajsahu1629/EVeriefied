@@ -57,6 +57,44 @@ interface JobPost {
     job_description?: string;
 }
 
+function sanitizePincode(value?: string): string {
+    return String(value || '').replace(/\D/g, '');
+}
+
+function normalizeCity(value?: string): string {
+    return String(value || '').trim().toLowerCase();
+}
+
+/**
+ * "Near" bucket for ranking:
+ * 0 = exact pincode
+ * 1 = same city
+ * 2 = same first-3 pincode and close last-3 (approx ~100km bucket)
+ * 3 = same first-3 pincode
+ * 9 = other locations
+ */
+function getLocationPriority(job: JobPost, userCity?: string, userPincode?: string): number {
+    const jobCity = normalizeCity(job.city);
+    const candidateCity = normalizeCity(userCity);
+    const jobPin = sanitizePincode(job.pincode);
+    const candidatePin = sanitizePincode(userPincode);
+
+    if (jobPin.length === 6 && candidatePin.length === 6) {
+        if (jobPin === candidatePin) return 0;
+        const samePrefix = jobPin.slice(0, 3) === candidatePin.slice(0, 3);
+        if (samePrefix) {
+            const last3Diff = Math.abs(parseInt(jobPin.slice(3), 10) - parseInt(candidatePin.slice(3), 10));
+            if (!Number.isNaN(last3Diff) && last3Diff <= 120) {
+                return 2;
+            }
+            return 3;
+        }
+    }
+
+    if (jobCity && candidateCity && jobCity === candidateCity) return 1;
+    return 9;
+}
+
 export default function JobsScreen() {
     const { userData, isLoading: isUserLoading } = useUser();
     const { t } = useLanguage();
@@ -177,8 +215,19 @@ export default function JobsScreen() {
             );
         }
 
+        // Priority order: nearest (approx 100km bucket) first, then all others
+        filtered.sort((a, b) => {
+            const aPriority = getLocationPriority(a, userData?.city, userData?.pincode);
+            const bPriority = getLocationPriority(b, userData?.city, userData?.pincode);
+            if (aPriority !== bPriority) return aPriority - bPriority;
+
+            const aTs = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bTs = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return bTs - aTs;
+        });
+
         setFilteredJobs(filtered);
-    }, [searchQuery, salaryFilter, jobs]);
+    }, [searchQuery, salaryFilter, jobs, userData?.city, userData?.pincode]);
 
 
     // Get role label

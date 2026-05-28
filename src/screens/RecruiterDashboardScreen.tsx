@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { PlusCircle, FileText, ChevronRight, LogOut, Search, MessageCircle } from 'lucide-react-native';
+import { PlusCircle, FileText, ChevronRight, LogOut, MessageCircle } from 'lucide-react-native';
 import { hiringHubTheme } from '../lib/hiringHubTheme';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -99,24 +99,8 @@ const RecruiterDashboardScreen: React.FC = () => {
                         <FileText size={32} color={hiringHubTheme.iconColor} />
                     </View>
                     <View style={styles.actionTextContainer}>
-                        <Text style={styles.actionTitle}>Hiring Hub</Text>
-                        <Text style={styles.actionDesc}>Your vacancies → applicants</Text>
-                    </View>
-                    <ChevronRight size={24} color={colors.muted} />
-                </TouchableOpacity>
-
-                {/* Find Candidates */}
-                <TouchableOpacity
-                    style={styles.actionCard}
-                    onPress={() => navigation.navigate('CandidateSearch')}
-                    activeOpacity={0.7}
-                >
-                    <View style={[styles.actionIconWrapper, { backgroundColor: '#e0f2fe' }]}>
-                        <Search size={32} color="#0284c7" />
-                    </View>
-                    <View style={styles.actionTextContainer}>
-                        <Text style={styles.actionTitle}>Find Candidates</Text>
-                        <Text style={styles.actionDesc}>Search verified EV professionals</Text>
+                        <Text style={styles.actionTitle}>Candidate Pipeline</Text>
+                        <Text style={styles.actionDesc}>Manage applicants stage-wise for your jobs</Text>
                     </View>
                     <ChevronRight size={24} color={colors.muted} />
                 </TouchableOpacity>

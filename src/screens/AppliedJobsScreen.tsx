@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, borderRadius, fontSize, layout } from '../lib/theme';
 import { TabScreenHeader } from '../components/TabScreenHeader';
@@ -31,6 +31,8 @@ interface AppliedJob {
     job_description: string;
     rejection_reason?: string;
 }
+
+const SUPPORT_PHONE = '919473928468';
 
 export default function AppliedJobsScreen() {
     const { t } = useLanguage();
@@ -128,6 +130,19 @@ export default function AppliedJobsScreen() {
         const statusConfig = getStatusConfig(item.status);
         const StatusIcon = statusConfig.icon;
         const isRecent = new Date(item.applied_at) > new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+        const appliedDate = new Date(item.applied_at);
+        const daysSinceApplied = Number.isNaN(appliedDate.getTime())
+            ? 0
+            : Math.floor((Date.now() - appliedDate.getTime()) / (1000 * 60 * 60 * 24));
+        const pendingTooLong =
+            daysSinceApplied >= 3 && ['applied', 'viewed'].includes((item.status || '').toLowerCase());
+
+        const contactSupport = () => {
+            const message = `Hi EVerified Support, I applied ${daysSinceApplied} day(s) ago but did not get response yet.\n\nCandidate: ${userData?.fullName || 'User'}\nJob: ${getRoleLabel(item.role_required)} at ${item.brand}\nLocation: ${item.city || 'N/A'}\nApplication ID: ${item.id}`;
+            Linking.openURL(`whatsapp://send?phone=${SUPPORT_PHONE}&text=${encodeURIComponent(message)}`).catch(() => {
+                Alert.alert(t('whatsappNotInstalled'), t('installWhatsapp'));
+            });
+        };
 
         return (
             <TouchableOpacity
@@ -217,6 +232,13 @@ export default function AppliedJobsScreen() {
                     <Text style={styles.rejectionReason}>
                         {t('rejectionReason')}: {item.rejection_reason}
                     </Text>
+                ) : null}
+
+                {pendingTooLong ? (
+                    <TouchableOpacity style={styles.supportCta} onPress={contactSupport} activeOpacity={0.85}>
+                        <Text style={styles.supportCtaTitle}>{t('noResponseIn3Days')}</Text>
+                        <Text style={styles.supportCtaLink}>{t('contactSupportNow')}</Text>
+                    </TouchableOpacity>
                 ) : null}
 
                 {/* Workflow Tracker (Candidates) */}
@@ -612,6 +634,27 @@ const styles = StyleSheet.create({
         color: '#ef4444',
         marginTop: spacing.sm,
         paddingHorizontal: spacing.xs,
+    },
+    supportCta: {
+        marginTop: spacing.sm,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
+        backgroundColor: '#eff6ff',
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.sm,
+    },
+    supportCtaTitle: {
+        fontSize: fontSize.xs,
+        color: '#1e40af',
+        fontWeight: '600',
+    },
+    supportCtaLink: {
+        marginTop: 4,
+        fontSize: fontSize.sm,
+        color: '#2563eb',
+        fontWeight: '700',
+        textDecorationLine: 'underline',
     },
     // Workflow Tracker Styles (Copied & adapted)
     workflowSection: {

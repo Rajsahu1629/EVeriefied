@@ -82,6 +82,14 @@ const NEXT_STATUS: Record<string, string[]> = {
     rejected: ['viewed'],
 };
 
+function formatStatusLabel(status: string) {
+    if (!status) return 'Unknown';
+    return status
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
 function statusColor(s: string) {
     switch (s) {
         case 'hired': return '#059669';
@@ -138,11 +146,17 @@ export default function AdminApplicationsScreen() {
             }
         } catch (error) {
             console.error('Error loading hiring data:', error);
+            const message = error instanceof Error ? error.message : '';
+            const missingRecruiterRoutes =
+                isRecruiterHub &&
+                (message.includes('/jobs/recruiter/') || message.includes('Expected JSON'));
             Alert.alert(
                 'Error',
-                isRecruiterHub
-                    ? 'Failed to load your hiring data.'
-                    : 'Failed to load hiring data. Ensure you are logged in as admin.'
+                missingRecruiterRoutes
+                    ? 'Recruiter pipeline API is not available on the current backend deployment. Please restart/deploy latest backend, then reload.'
+                    : isRecruiterHub
+                        ? 'Failed to load your hiring data.'
+                        : 'Failed to load hiring data. Ensure you are logged in as admin.'
             );
         } finally {
             setLoading(false);
@@ -307,7 +321,7 @@ export default function AdminApplicationsScreen() {
                         <Text style={styles.applicantName}>{item.applicant_name || 'Unknown'}</Text>
                         <View style={[styles.statusBadge, { backgroundColor: statusColor(item.status) + '22' }]}>
                             <Text style={[styles.statusBadgeText, { color: statusColor(item.status) }]}>
-                                {item.status}
+                                {formatStatusLabel(item.status)}
                             </Text>
                         </View>
                     </View>
@@ -345,7 +359,7 @@ export default function AdminApplicationsScreen() {
                         )}
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.tapStatusBtn} onPress={() => openStatusModal(item)}>
-                        <Text style={styles.tapStatusBtnText}>Update status →</Text>
+                        <Text style={styles.tapStatusBtnText}>Update stage →</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -461,9 +475,9 @@ export default function AdminApplicationsScreen() {
                     <ArrowLeft size={24} color={hiringHubTheme.headerTitle} />
                 </TouchableOpacity>
                 <View style={styles.headerCenter}>
-                    <Text style={styles.headerTitle}>Hiring Hub</Text>
+                    <Text style={styles.headerTitle}>{isRecruiterHub ? 'Candidate Pipeline' : 'Hiring Hub'}</Text>
                     <Text style={styles.headerSub}>
-                        {isRecruiterHub ? 'Your vacancies → applicants' : 'Company → vacancy → applicants'}
+                        {isRecruiterHub ? 'Your jobs → applicants → stage updates' : 'Company → vacancy → applicants'}
                     </Text>
                 </View>
             </View>
@@ -516,7 +530,7 @@ export default function AdminApplicationsScreen() {
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
                     <View style={styles.modalSheet}>
                         <Text style={styles.modalTitle}>{selectedApp?.applicant_name}</Text>
-                        <Text style={styles.modalSub}>{selectedApp?.brand} · Current: {selectedApp?.status}</Text>
+                        <Text style={styles.modalSub}>{selectedApp?.brand} · Current: {formatStatusLabel(selectedApp?.status || '')}</Text>
 
                         {selectedApp?.user_id ? (
                             <TouchableOpacity
@@ -535,7 +549,9 @@ export default function AdminApplicationsScreen() {
                             </TouchableOpacity>
                         ) : null}
 
-                        <Text style={styles.inputLabel}>Admin notes (internal)</Text>
+                        <Text style={styles.inputLabel}>
+                            {isRecruiterHub ? 'Recruiter notes (internal)' : 'Admin notes (internal)'}
+                        </Text>
                         <TextInput
                             style={styles.textInput}
                             multiline
@@ -547,7 +563,7 @@ export default function AdminApplicationsScreen() {
                             <Text style={styles.notesSaveText}>Save notes only</Text>
                         </TouchableOpacity>
 
-                        <Text style={styles.inputLabel}>Move to stage</Text>
+                        <Text style={styles.inputLabel}>Move candidate to stage</Text>
                         {selectedApp &&
                             (NEXT_STATUS[selectedApp.status] || ['viewed', 'shortlisted', 'interview', 'hired', 'rejected']).map((st) => (
                                 <TouchableOpacity
@@ -562,7 +578,7 @@ export default function AdminApplicationsScreen() {
                                     }}
                                     disabled={saving}
                                 >
-                                    <Text style={styles.statusOptionText}>{st}</Text>
+                                    <Text style={styles.statusOptionText}>{formatStatusLabel(st)}</Text>
                                     <ChevronDown size={16} color={colors.muted} style={{ transform: [{ rotate: '-90deg' }] }} />
                                 </TouchableOpacity>
                             ))}
