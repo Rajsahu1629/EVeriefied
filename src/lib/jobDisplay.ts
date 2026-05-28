@@ -6,6 +6,7 @@ export function formatVehicleCategory(
 ): string {
     if (category === '2W') return t('twoWheeler');
     if (category === '3W') return t('threeWheeler');
+    if (category === '4W') return t('fourWheeler');
     return category;
 }
 

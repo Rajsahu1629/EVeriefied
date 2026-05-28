@@ -276,11 +276,10 @@ const RecruiterRegistrationScreen: React.FC = () => {
                         }}
                         labels={{
                             state: t('state'),
-                            city: t('city'),
+                            city: t('cityHomeAddress'),
                             pincode: t('pincode'),
                             selectState: t('selectState'),
-                            selectCity: t('selectCity'),
-                            selectStateFirst: t('selectState'),
+                            cityPlaceholder: t('cityHomeAddressPlaceholder'),
                         }}
                     />
 

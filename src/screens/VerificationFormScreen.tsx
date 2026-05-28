@@ -78,6 +78,7 @@ const VerificationFormScreen: React.FC = () => {
     const vehicleCategories = [
         { label: t('twoWheeler'), value: '2W' },
         { label: t('threeWheeler'), value: '3W' },
+        { label: t('fourWheeler'), value: '4W' },
     ];
 
     const [step, setStep] = useState(1);
@@ -401,11 +402,10 @@ const VerificationFormScreen: React.FC = () => {
                 }}
                 labels={{
                     state: t('state'),
-                    city: t('city'),
+                    city: t('cityHomeAddress'),
                     pincode: t('pincode'),
                     selectState: t('selectState'),
-                    selectCity: t('selectCity'),
-                    selectStateFirst: t('selectState'),
+                    cityPlaceholder: t('cityHomeAddressPlaceholder'),
                 }}
             />
 

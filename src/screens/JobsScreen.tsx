@@ -18,6 +18,7 @@ import {
     MapPin,
     IndianRupee,
     Users,
+    Award,
     Building2,
     ChevronRight,
     CheckCircle,
@@ -322,6 +323,14 @@ export default function JobsScreen() {
                             {formatVacancyCount(item.number_of_people, t)}
                         </Text>
                     </View>
+                    {item.has_incentive ? (
+                        <View style={[styles.tagChip, styles.tagIncentive]}>
+                            <Award size={12} color="#059669" />
+                            <Text style={[styles.tagChipText, { color: '#059669' }]}>
+                                {t('incentive')}
+                            </Text>
+                        </View>
+                    ) : null}
                 </View>
 
                 {/* Experience Tag + Vehicle Category Tag */}
@@ -734,6 +743,10 @@ const styles = StyleSheet.create({
     tagVacancies: {
         backgroundColor: '#ffedd5',
         borderColor: '#fdba74',
+    },
+    tagIncentive: {
+        backgroundColor: '#d1fae5',
+        borderColor: '#86efac',
     },
     tagChipText: {
         fontSize: fontSize.xs,

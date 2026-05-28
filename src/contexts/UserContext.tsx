@@ -30,7 +30,7 @@ export interface UserData {
     totalQuestions?: number;
     lastQuizAttempt?: string;
     domain?: 'EV' | 'BS6';
-    vehicle_category?: '2W' | '3W';
+    vehicle_category?: '2W' | '3W' | '4W';
     training_role?: string;
     is_admin_verified?: boolean;
 

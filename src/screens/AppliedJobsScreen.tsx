@@ -17,6 +17,7 @@ interface AppliedJob {
     job_post_id: number;
     status: string;
     applied_at: string;
+    status_updated_at?: string;
     // Job post details
     brand: string;
     role_required: string;
@@ -130,15 +131,17 @@ export default function AppliedJobsScreen() {
         const statusConfig = getStatusConfig(item.status);
         const StatusIcon = statusConfig.icon;
         const isRecent = new Date(item.applied_at) > new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-        const appliedDate = new Date(item.applied_at);
-        const daysSinceApplied = Number.isNaN(appliedDate.getTime())
+        const lastMovementAt = item.status_updated_at || item.applied_at;
+        const movementDate = new Date(lastMovementAt);
+        const daysSinceMovement = Number.isNaN(movementDate.getTime())
             ? 0
-            : Math.floor((Date.now() - appliedDate.getTime()) / (1000 * 60 * 60 * 24));
+            : Math.floor((Date.now() - movementDate.getTime()) / (1000 * 60 * 60 * 24));
+        const statusKey = (item.status || '').toLowerCase();
         const pendingTooLong =
-            daysSinceApplied >= 3 && ['applied', 'viewed'].includes((item.status || '').toLowerCase());
+            daysSinceMovement >= 3 && !['hired', 'rejected'].includes(statusKey);
 
         const contactSupport = () => {
-            const message = `Hi EVerified Support, I applied ${daysSinceApplied} day(s) ago but did not get response yet.\n\nCandidate: ${userData?.fullName || 'User'}\nJob: ${getRoleLabel(item.role_required)} at ${item.brand}\nLocation: ${item.city || 'N/A'}\nApplication ID: ${item.id}`;
+            const message = `Hi EVerified Support, there is no status movement for ${daysSinceMovement} day(s) on my application.\n\nCandidate: ${userData?.fullName || 'User'}\nJob: ${getRoleLabel(item.role_required)} at ${item.brand}\nCurrent Stage: ${item.status}\nLocation: ${item.city || 'N/A'}\nApplication ID: ${item.id}`;
             Linking.openURL(`whatsapp://send?phone=${SUPPORT_PHONE}&text=${encodeURIComponent(message)}`).catch(() => {
                 Alert.alert(t('whatsappNotInstalled'), t('installWhatsapp'));
             });
@@ -234,12 +237,17 @@ export default function AppliedJobsScreen() {
                     </Text>
                 ) : null}
 
-                {pendingTooLong ? (
-                    <TouchableOpacity style={styles.supportCta} onPress={contactSupport} activeOpacity={0.85}>
-                        <Text style={styles.supportCtaTitle}>{t('noResponseIn3Days')}</Text>
-                        <Text style={styles.supportCtaLink}>{t('contactSupportNow')}</Text>
-                    </TouchableOpacity>
-                ) : null}
+                <TouchableOpacity
+                    style={[styles.supportCta, !pendingTooLong && styles.supportCtaDisabled]}
+                    onPress={contactSupport}
+                    activeOpacity={pendingTooLong ? 0.85 : 1}
+                    disabled={!pendingTooLong}
+                >
+                    <Text style={styles.supportCtaTitle}>{t('noResponseIn3Days')}</Text>
+                    <Text style={[styles.supportCtaLink, !pendingTooLong && styles.supportCtaLinkDisabled]}>
+                        {pendingTooLong ? t('contactSupportNow') : t('contactSupportWait')}
+                    </Text>
+                </TouchableOpacity>
 
                 {/* Workflow Tracker (Candidates) */}
                 <View style={styles.workflowSection}>
@@ -655,6 +663,13 @@ const styles = StyleSheet.create({
         color: '#2563eb',
         fontWeight: '700',
         textDecorationLine: 'underline',
+    },
+    supportCtaDisabled: {
+        opacity: 0.45,
+    },
+    supportCtaLinkDisabled: {
+        color: colors.muted,
+        textDecorationLine: 'none',
     },
     // Workflow Tracker Styles (Copied & adapted)
     workflowSection: {

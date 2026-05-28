@@ -1,11 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { MapPin } from 'lucide-react-native';
 import { Select } from './ui/Select';
 import { Input } from './ui/Input';
 import { colors } from '../lib/theme';
 import {
-    getCitiesByStateWithApi,
-    getCityOptions,
     getStateOptions,
     lookupLocationByPincode,
     normalizePincode,
@@ -27,8 +25,7 @@ interface LocationFieldsProps {
         city: string;
         pincode: string;
         selectState: string;
-        selectCity: string;
-        selectStateFirst?: string;
+        cityPlaceholder?: string;
     };
 }
 
@@ -39,32 +36,7 @@ export function LocationFields({
     labels,
 }: LocationFieldsProps) {
     const stateOptions = useMemo(() => getStateOptions(), []);
-    const [cityOptions, setCityOptions] = useState<Array<{ label: string; value: string }>>(
-        () => getCityOptions(values.state, values.city)
-    );
     const pincodeLookupRef = useRef<string>('');
-
-    const handleStateChange = (state: string) => {
-        onChange('state', state);
-        const cities = getCityOptions(state).map((c) => c.value);
-        if (values.city && !cities.includes(values.city)) {
-            onChange('city', '');
-        }
-    };
-
-    useEffect(() => {
-        let cancelled = false;
-        const loadCities = async () => {
-            const options = await getCitiesByStateWithApi(values.state, values.city);
-            if (!cancelled) {
-                setCityOptions(options);
-            }
-        };
-        loadCities();
-        return () => {
-            cancelled = true;
-        };
-    }, [values.state, values.city]);
 
     useEffect(() => {
         let cancelled = false;
@@ -81,7 +53,7 @@ export function LocationFields({
             }
 
             const nextState = resolved.state.trim();
-            const nextCity = resolveCityInState(nextState, resolved.city);
+            const nextCity = resolveCityInState(nextState, resolved.city) || resolved.city.trim();
 
             if (nextState && nextState !== values.state) {
                 onChange('state', nextState);
@@ -104,22 +76,17 @@ export function LocationFields({
                 placeholder={labels.selectState}
                 options={stateOptions}
                 value={values.state}
-                onValueChange={handleStateChange}
+                onValueChange={(v) => onChange('state', v)}
                 error={errors.state}
             />
 
-            <Select
+            <Input
                 label={labels.city}
-                placeholder={
-                    values.state
-                        ? labels.selectCity
-                        : labels.selectStateFirst || labels.selectState
-                }
-                options={cityOptions}
+                placeholder={labels.cityPlaceholder || 'Enter city or home address'}
                 value={values.city}
-                onValueChange={(v) => onChange('city', v)}
+                onChangeText={(v) => onChange('city', v)}
                 error={errors.city}
-                disabled={!values.state}
+                autoCapitalize="words"
             />
 
             <Input

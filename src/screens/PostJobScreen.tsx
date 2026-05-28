@@ -129,8 +129,9 @@ const PostJobScreen: React.FC = () => {
     ];
 
     const vehicleCategories = [
-        { label: '2 Wheeler', value: '2W' },
-        { label: '3 Wheeler', value: '3W' },
+        { label: t('twoWheeler'), value: '2W' },
+        { label: t('threeWheeler'), value: '3W' },
+        { label: t('fourWheeler'), value: '4W' },
     ];
 
 
@@ -252,7 +253,11 @@ const PostJobScreen: React.FC = () => {
             }
         } catch (error) {
             console.error('Job post error:', error);
-            Alert.alert(t('error'), t('jobPostFailed'));
+            const serverMessage =
+                error instanceof Error && error.message
+                    ? error.message
+                    : t('jobPostFailed');
+            Alert.alert(t('error'), serverMessage);
         } finally {
             setIsLoading(false);
         }
@@ -396,11 +401,10 @@ const PostJobScreen: React.FC = () => {
                 }}
                 labels={{
                     state: t('state'),
-                    city: t('city'),
+                    city: t('cityHomeAddress'),
                     pincode: t('pincode'),
                     selectState: t('selectState'),
-                    selectCity: t('selectCity'),
-                    selectStateFirst: t('selectState'),
+                    cityPlaceholder: t('cityHomeAddressPlaceholder'),
                 }}
             />
 

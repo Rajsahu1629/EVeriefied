@@ -16,7 +16,7 @@
                 "simulator": true
             },
             "env": {
-                "EXPO_PUBLIC_API_URL": "http://15.207.85.85:3001/api"
+                "EXPO_PUBLIC_API_URL": "http://3.110.208.133:3001/api"
             }
         },
         "production": {
@@ -24,7 +24,7 @@
                 "buildType": "app-bundle"
             },
             "env": {
-                "EXPO_PUBLIC_API_URL": "http://15.207.85.85:3001/api"
+                "EXPO_PUBLIC_API_URL": "http://3.110.208.133:3001/api"
             }
         }
     },
