@@ -7,7 +7,7 @@ import {
     ViewStyle,
     TextStyle,
 } from 'react-native';
-import { colors, borderRadius, spacing, fontSize } from '../../lib/theme';
+import { colors, borderRadius, spacing, fontSize, layout } from '../../lib/theme';
 
 type ButtonVariant = 'default' | 'outline' | 'ghost' | 'destructive' | 'secondary';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -50,9 +50,9 @@ export const Button: React.FC<ButtonProps> = ({
 
         // Size styles
         const sizeStyles: Record<ButtonSize, ViewStyle> = {
-            sm: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
-            md: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
-            lg: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xl },
+            sm: { minHeight: layout.buttonHeightSm, paddingVertical: 6, paddingHorizontal: spacing.md },
+            md: { minHeight: layout.buttonHeight, paddingVertical: 10, paddingHorizontal: spacing.lg },
+            lg: { minHeight: 48, paddingVertical: spacing.md, paddingHorizontal: spacing.xl },
         };
 
         // Variant styles

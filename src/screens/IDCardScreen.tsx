@@ -6,9 +6,7 @@ import {
     StatusBar,
     ScrollView,
     Modal,
-    TextInput,
     Alert,
-    KeyboardAvoidingView,
     Platform,
     Dimensions,
     TouchableOpacity,
@@ -19,12 +17,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import {
     Zap, Star, CheckCircle, Clock, AlertCircle, LogOut,
-    Package, ChevronRight, X, MapPin, Phone, User, Home, Download, Share2,
-    Instagram, MessageCircle, Facebook, Edit
+    Briefcase, ChevronRight, Download, Share2,
+    Instagram, MessageCircle, Facebook, Edit, FileText
 } from 'lucide-react-native';
 import { useUser, VerificationStatus, UserData } from '../contexts/UserContext';
 import { colors, spacing } from '../lib/theme';
-import { useNavigation } from '@react-navigation/native';
+import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { LanguageSelector } from '../components/LanguageSelector';
@@ -33,7 +32,20 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { captureRef } from 'react-native-view-shot';
 import { useRef } from 'react';
-import { getCardOrderStatus, updateCardOrderStatus } from '../lib/api';
+import { generateAndShareResumePdf, buildResumeLabelsFromT, resolveResumeRoleTitle } from '../lib/resumePdf';
+
+type UserTabParamList = {
+    IDCard: undefined;
+    Jobs: undefined;
+    Applied: undefined;
+    Learn: undefined;
+    News: undefined;
+};
+
+type IDCardScreenNavigationProp = CompositeNavigationProp<
+    BottomTabNavigationProp<UserTabParamList, 'IDCard'>,
+    StackNavigationProp<RootStackParamList>
+>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // Standard base width (iPhone 13/14 approx)
@@ -129,6 +141,11 @@ const THEMES = {
 };
 
 const getRoleLabel = (userData: UserData | null | undefined, t: (key: string) => string) => {
+    const onboardingTitle = (userData?.training_role || '').trim();
+    if (onboardingTitle) {
+        return { title: onboardingTitle };
+    }
+
     const role = userData?.role;
     // Strip "Verified " if it somehow exists in the database role
     const cleanRole = (role || "").replace(/^Verified\s+/i, "");
@@ -158,10 +175,10 @@ const getVerificationProgress = (userData: UserData | null | undefined, t: (key:
         if (status === 'verified') return t('allTestsPassed');
         if (status === 'failed') return t('retryAfter7Days');
 
-        if (step === 0) return "Basic Verification Pending";
-        if (step === 1) return "Engine Expert ";
-        if (step === 2) return "Diagnosis Expert(Electrical)";
-        return "Diagnosis + Engine Expert";
+        if (step === 0) return t('bs6VerificationPending');
+        if (step === 1) return t('bs6EngineExpert');
+        if (step === 2) return t('bs6DiagnosisExpert');
+        return t('bs6FullExpert');
     }
 
     const isSingleStepRole = role === 'sales' || role === 'workshop' || role === 'aspirant';
@@ -174,37 +191,11 @@ const getVerificationProgress = (userData: UserData | null | undefined, t: (key:
 export default function IDCardScreen() {
     const { userData, logout } = useUser();
     const { t } = useLanguage();
-    const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+    const navigation = useNavigation<IDCardScreenNavigationProp>();
     const cardRef = useRef(null);
 
-    // Order Modal State
-    const [showOrderModal, setShowOrderModal] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
-    const [orderForm, setOrderForm] = useState({
-        fullName: userData?.fullName || '',
-        address: '',
-        city: userData?.city || '',
-        pincode: userData?.pincode || '',
-        mobile: userData?.phoneNumber || '',
-    });
-    const [cardOrdered, setCardOrdered] = useState(false);
-    const [isOrderLoading, setIsOrderLoading] = useState(false);
-
-    // Check if card was already ordered
-    React.useEffect(() => {
-        const checkCardOrderStatus = async () => {
-            if (!userData?.id) return;
-            try {
-                const result = await getCardOrderStatus(userData.id);
-                if (result.cardOrdered) {
-                    setCardOrdered(true);
-                }
-            } catch (error) {
-                console.error('Error checking order status:', error);
-            }
-        };
-        checkCardOrderStatus();
-    }, [userData?.id]);
+    const [isResumeLoading, setIsResumeLoading] = useState(false);
 
     // Theme Logic - Decoupled from Verification Status
     // Step 1: User Passed Test (verificationStatus is verified/approved)
@@ -293,24 +284,8 @@ export default function IDCardScreen() {
         navigation.navigate('SkillVerification', { step });
     };
 
-    const handleOrderCard = async () => {
-        if (!orderForm.fullName || !orderForm.address || !orderForm.pincode || !orderForm.mobile) {
-            Alert.alert('Missing Details', 'Please fill all required fields');
-            return;
-        }
-
-        setIsOrderLoading(true);
-        try {
-            await updateCardOrderStatus(userData?.id || '', true);
-            setCardOrdered(true);
-            Alert.alert('Order Placed!', 'Your physical ID Card for Rs 199 will be delivered within 7-10 days.');
-            setShowOrderModal(false);
-        } catch (error) {
-            console.error('Order error:', error);
-            Alert.alert('Error', 'Failed to place order. Please try again.');
-        } finally {
-            setIsOrderLoading(false);
-        }
+    const handleOpenJobs = () => {
+        navigation.navigate('Jobs');
     };
 
     const handleShare = async (platform?: 'whatsapp' | 'instagram' | 'facebook') => {
@@ -350,23 +325,40 @@ export default function IDCardScreen() {
 
             const isSharingAvailable = await Sharing.isAvailableAsync();
             if (!isSharingAvailable) {
-                Alert.alert('Error', 'Sharing not available on this device');
+                Alert.alert(t('error'), t('networkError'));
                 return;
             }
 
-            // Using Sharing.shareAsync instead of MediaLibrary.
-            // This allows the user to click "Save Image" or "Save to Files" from the system sheet.
-            // This method does NOT require broad media permissions from the app itself.
             await Sharing.shareAsync(uri, {
                 mimeType: 'image/png',
-                dialogTitle: 'Download your ID card',
-                UTI: 'public.png', // for iOS
+                dialogTitle: t('download'),
+                UTI: 'public.png',
             });
 
             setShowShareModal(false);
         } catch (error) {
             console.error('Download error:', error);
-            Alert.alert('Error', 'Could not save. Please take a screenshot manually.');
+            Alert.alert(t('error'), t('resumeFailed'));
+        }
+    };
+
+    const handleDownloadResume = async () => {
+        if (!userData) return;
+        setIsResumeLoading(true);
+        try {
+            await generateAndShareResumePdf({
+                user: userData,
+                roleTitle: resolveResumeRoleTitle(userData),
+                labels: buildResumeLabelsFromT(t),
+            });
+            if (Platform.OS === 'web') {
+                Alert.alert(t('downloadResume'), t('resumeWebPrintHint'));
+            }
+        } catch (error) {
+            console.error('Resume PDF error:', error);
+            Alert.alert(t('error'), t('resumeFailed'));
+        } finally {
+            setIsResumeLoading(false);
         }
     };
 
@@ -400,7 +392,11 @@ export default function IDCardScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
-                <Text style={styles.welcomeText}>{t('welcome')}, {userData?.fullName?.split(' ')[0] || 'User'}!</Text>
+                <Text style={styles.welcomeText}>
+                    {t('welcomeUser', {
+                        name: userData?.fullName?.split(' ')[0] || t('user'),
+                    })}
+                </Text>
                 <Text style={styles.roleText}>{roleInfo.title}</Text>
             </LinearGradient>
 
@@ -457,7 +453,7 @@ export default function IDCardScreen() {
                                     </View>
                                     <View>
                                         <Text style={{ color: '#FFC107', fontSize: scale(10), fontWeight: 'bold', letterSpacing: scale(1) }}>{t('testPassed').toUpperCase()}</Text>
-                                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: scale(8) }}>Pending Admin Approval</Text>
+                                        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: scale(8) }}>{t('pendingAdminApproval')}</Text>
                                     </View>
                                 </View>
                             ) : (
@@ -531,21 +527,21 @@ export default function IDCardScreen() {
                     {!isVerified && userData?.verificationStatus !== 'failed' && (
                         <TouchableOpacity onPress={handleStartVerification} style={styles.verifyBtn}>
                             <Text style={styles.verifyBtnText}>
-                                {userData?.verificationStatus === 'step1_completed' ? t('continue') : t('startVerification').split(' ')[0]}
+                                {userData?.verificationStatus === 'step1_completed' ? t('continue') : t('start')}
                             </Text>
                             <ChevronRight size={scale(16)} color="#fff" />
                         </TouchableOpacity>
                     )}
                 </View>
 
-                {/* Action Buttons (Edit/Download/Share) */}
+                {/* Action Buttons */}
                 <View style={styles.actionRow}>
                     <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: '#f59e0b', flex: 0.8 }]}
+                        style={[styles.actionBtn, { backgroundColor: '#f59e0b', flex: 0.9 }]}
                         onPress={() => navigation.navigate('VerificationForm', { isEditMode: true } as any)}
                     >
                         <Edit size={scale(18)} color="#fff" />
-                        <Text style={styles.actionBtnText}>{t('edit') || 'Edit'}</Text>
+                        <Text style={styles.actionBtnText}>{t('edit')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.actionBtn} onPress={handleDownload}>
@@ -559,26 +555,28 @@ export default function IDCardScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Physical Card Order - Now visible to all professionals */}
                 <TouchableOpacity
-                    style={[styles.orderBtn, cardOrdered && { opacity: 0.7 }]}
-                    onPress={() => !cardOrdered && setShowOrderModal(true)}
-                    disabled={cardOrdered}
+                    style={[styles.resumeBtn, isResumeLoading && { opacity: 0.7 }]}
+                    onPress={handleDownloadResume}
+                    disabled={isResumeLoading}
                 >
+                    <Download size={scale(20)} color="#fff" />
+                    <Text style={styles.resumeBtnText}>
+                        {isResumeLoading ? t('resumeGenerating') : t('downloadResume')}
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.orderBtn} onPress={handleOpenJobs}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: scale(12) }}>
-                        <View style={{ width: scale(40), height: scale(40), borderRadius: scale(20), backgroundColor: cardOrdered ? 'rgba(76, 175, 80, 0.2)' : 'rgba(26, 157, 110, 0.1)', justifyContent: 'center', alignItems: 'center' }}>
-                            {cardOrdered ? <CheckCircle size={scale(20)} color="#4CAF50" /> : <Package size={scale(20)} color="#1a9d6e" />}
+                        <View style={{ width: scale(40), height: scale(40), borderRadius: scale(20), backgroundColor: 'rgba(26, 157, 110, 0.1)', justifyContent: 'center', alignItems: 'center' }}>
+                            <Briefcase size={scale(20)} color="#1a9d6e" />
                         </View>
                         <View>
-                            <Text style={{ fontWeight: 'bold', fontSize: scale(16) }}>
-                                {cardOrdered ? t('cardOrdered') : t('orderCard')}
-                            </Text>
-                            <Text style={{ fontSize: scale(12), color: colors.muted }}>
-                                {cardOrdered ? t('cardDeliveredMsg') : t('getPremiumCard')}
-                            </Text>
+                            <Text style={{ fontWeight: 'bold', fontSize: scale(16) }}>{t('jobs')}</Text>
+                            <Text style={{ fontSize: scale(12), color: colors.muted }}>{t('applyForJobs')}</Text>
                         </View>
                     </View>
-                    {!cardOrdered && <ChevronRight size={scale(20)} color={colors.muted} />}
+                    <ChevronRight size={scale(20)} color={colors.muted} />
                 </TouchableOpacity>
 
                 {/* WhatsApp Support Button */}
@@ -589,7 +587,7 @@ export default function IDCardScreen() {
                         const message = 'Hi, I need help with EVerified app.';
                         const url = `whatsapp://send?phone=${whatsappNumber}&text=${encodeURIComponent(message)}`;
                         Linking.openURL(url).catch(() => {
-                            Alert.alert('WhatsApp not installed', 'Please install WhatsApp to contact support.');
+                            Alert.alert(t('whatsappNotInstalled'), t('installWhatsapp'));
                         });
                     }}
                 >
@@ -646,44 +644,6 @@ export default function IDCardScreen() {
                 </TouchableOpacity>
             </Modal>
 
-            {/* Order Modal */}
-            <Modal visible={showOrderModal} animationType="slide" transparent>
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Order Physical ID Card (Rs 199)</Text>
-                            <TouchableOpacity onPress={() => setShowOrderModal(false)}>
-                                <X size={24} color={colors.muted} />
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView style={{ maxHeight: 400 }}>
-                            <Text style={styles.formLabel}>Full Name *</Text>
-                            <View style={styles.inputBox}><User size={18} color="#9ca3af" /><TextInput style={styles.input} value={orderForm.fullName} onChangeText={t => setOrderForm({ ...orderForm, fullName: t })} /></View>
-
-                            <Text style={styles.formLabel}>Address *</Text>
-                            <View style={styles.inputBox}><Home size={18} color="#9ca3af" /><TextInput style={styles.input} value={orderForm.address} onChangeText={t => setOrderForm({ ...orderForm, address: t })} /></View>
-
-                            <View style={{ flexDirection: 'row', gap: 10 }}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.formLabel}>City *</Text>
-                                    <View style={styles.inputBox}><MapPin size={18} color="#9ca3af" /><TextInput style={styles.input} value={orderForm.city} onChangeText={t => setOrderForm({ ...orderForm, city: t })} /></View>
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.formLabel}>Pincode *</Text>
-                                    <View style={styles.inputBox}><TextInput style={styles.input} value={orderForm.pincode} onChangeText={t => setOrderForm({ ...orderForm, pincode: t })} keyboardType='numeric' /></View>
-                                </View>
-                            </View>
-
-                            <Text style={styles.formLabel}>Mobile *</Text>
-                            <View style={styles.inputBox}><Phone size={18} color="#9ca3af" /><TextInput style={styles.input} value={orderForm.mobile} onChangeText={t => setOrderForm({ ...orderForm, mobile: t })} keyboardType='phone-pad' /></View>
-
-                            <TouchableOpacity style={styles.submitBtn} onPress={handleOrderCard}>
-                                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Place Order</Text>
-                            </TouchableOpacity>
-                        </ScrollView>
-                    </View>
-                </KeyboardAvoidingView>
-            </Modal>
         </SafeAreaView>
     );
 }
@@ -692,15 +652,15 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8f9fa' },
 
     // Header
-    header: { padding: scale(20), paddingTop: Platform.OS === 'android' ? scale(35) : scale(10), paddingBottom: scale(20) },
+    header: { padding: scale(16), paddingTop: Platform.OS === 'android' ? scale(28) : scale(8), paddingBottom: scale(14) },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: scale(12) },
     headerLeft: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
     headerLogoText: { color: '#fff', fontSize: scale(18), fontWeight: '700' },
     logoutBtn: { padding: scale(4) },
-    welcomeText: { color: '#fff', fontSize: scale(22), fontWeight: 'bold' },
+    welcomeText: { color: '#fff', fontSize: scale(18), fontWeight: 'bold' },
     roleText: { color: 'rgba(255,255,255,0.9)', fontSize: scale(14), marginTop: scale(2) },
 
-    scrollContent: { padding: scale(20), paddingBottom: scale(100) },
+    scrollContent: { padding: scale(16), paddingBottom: scale(88) },
 
     // Card Styles
     cardContainer: {
@@ -714,7 +674,7 @@ const styles = StyleSheet.create({
         shadowRadius: scale(15),
         marginBottom: scale(20),
     },
-    cardGradient: { flex: 1, padding: scale(20), position: 'relative' },
+    cardGradient: { flex: 1, padding: scale(16), position: 'relative' },
 
     // Large Circle with QR
     largeCircle: {
@@ -745,7 +705,7 @@ const styles = StyleSheet.create({
 
     // User Details
     userDetails: { marginBottom: scale(20), maxWidth: '65%' },
-    cardName: { color: '#fff', fontSize: scale(24), fontWeight: 'bold', lineHeight: scale(28), marginBottom: scale(4) },
+    cardName: { color: '#fff', fontSize: scale(20), fontWeight: 'bold', lineHeight: scale(24), marginBottom: scale(2) },
     cardRole: { color: '#fff', fontSize: scale(13), fontWeight: '600' },
     cardSub: { color: 'rgba(255,255,255,0.85)', fontSize: scale(11), marginTop: scale(2) },
 
@@ -817,7 +777,7 @@ const styles = StyleSheet.create({
     },
 
     // Status Card
-    statusCard: { flexDirection: 'row', alignItems: 'center', padding: scale(14), borderRadius: scale(12), borderWidth: 1, gap: scale(12), marginBottom: scale(16) },
+    statusCard: { flexDirection: 'row', alignItems: 'center', padding: scale(10), borderRadius: scale(10), borderWidth: 1, gap: scale(10), marginBottom: scale(12) },
     statusIcon: { width: scale(40), height: scale(40), borderRadius: scale(20), justifyContent: 'center', alignItems: 'center' },
     statusInfo: { flex: 1 },
     statusTitle: { fontSize: scale(15), fontWeight: 'bold' },
@@ -826,13 +786,26 @@ const styles = StyleSheet.create({
     verifyBtnText: { color: '#fff', fontSize: scale(13), fontWeight: '600' },
 
     // Actions
-    actionRow: { flexDirection: 'row', gap: scale(12), marginBottom: scale(16) },
-    actionBtn: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(8), padding: scale(14), backgroundColor: '#1a9d6e', borderRadius: scale(14) },
+    actionRow: { flexDirection: 'row', gap: scale(12), marginBottom: scale(12) },
+    resumeBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: scale(8),
+        backgroundColor: '#0d9488',
+        minHeight: 44,
+        paddingVertical: scale(10),
+        paddingHorizontal: scale(14),
+        borderRadius: scale(10),
+        marginBottom: scale(12),
+    },
+    resumeBtnText: { color: '#fff', fontWeight: '700', fontSize: scale(14) },
+    actionBtn: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scale(6), minHeight: 44, paddingVertical: scale(10), paddingHorizontal: scale(8), backgroundColor: '#1a9d6e', borderRadius: scale(10) },
     shareBtn: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
     actionBtnText: { color: '#fff', fontWeight: '600', fontSize: scale(14) },
 
     // Order Btn
-    orderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: scale(16), backgroundColor: '#fff', borderRadius: scale(16), borderWidth: 1, borderColor: '#e5e7eb', marginBottom: scale(16) },
+    orderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: scale(10), paddingHorizontal: scale(12), backgroundColor: '#fff', borderRadius: scale(12), borderWidth: 1, borderColor: '#e5e7eb', marginBottom: scale(10) },
 
     // Modal
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

@@ -5,6 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 // Screens
 import RoleSelectionScreen from '../screens/RoleSelectionScreen';
 import ActionSelectionScreen from '../screens/ActionSelectionScreen';
+import SubRoleSelectionScreen from '../screens/SubRoleSelectionScreen';
 import VerificationFormScreen from '../screens/VerificationFormScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SuccessScreen from '../screens/SuccessScreen';
@@ -25,14 +26,22 @@ import AdminVerificationRecheckScreen from '../screens/AdminVerificationRecheckS
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import JobApplicantsScreen from '../screens/JobApplicantsScreen';
 import AdminCardOrdersScreen from '../screens/AdminCardOrdersScreen';
+import AdminApplicationsScreen from '../screens/AdminApplicationsScreen';
+import HiringHubCompanyScreen from '../screens/HiringHubCompanyScreen';
+import AdminVacancyApplicantsScreen from '../screens/AdminVacancyApplicantsScreen';
+import AdminPendingQuizScreen from '../screens/AdminPendingQuizScreen';
+import AdminAnalyticsScreen from '../screens/AdminAnalyticsScreen';
+import AdminActiveJobsScreen from '../screens/AdminActiveJobsScreen';
 
 // Navigators
 import UserTabNavigator from './UserTabNavigator';
+import type { HiringCompany } from '../types/hiringHub';
 
 export type RootStackParamList = {
     LanguageSelection: undefined;
     RoleSelection: undefined;
     ActionSelection: undefined;
+    SubRoleSelection: { parentRole: 'sales' | 'workshop' };
     VerificationForm: undefined;
     Login: undefined;
     Success: undefined;
@@ -44,6 +53,7 @@ export type RootStackParamList = {
     RecruiterRegistration: undefined;
     RecruiterLogin: undefined;
     RecruiterDashboard: undefined;
+    RecruiterHiringHub: undefined;
     PostJob: undefined;
     PreviousJobs: undefined;
     AdminJobApproval: undefined;
@@ -52,6 +62,24 @@ export type RootStackParamList = {
     AdminDashboard: undefined;
     JobApplicants: { jobId: number; jobTitle: string };
     AdminCardOrders: undefined;
+    AdminApplications: undefined;
+    HiringHubCompany: {
+        company: HiringCompany;
+        scope?: 'admin' | 'recruiter';
+        recruiterId?: number;
+    };
+    AdminVacancyApplicants: {
+        jobId: number;
+        brand: string;
+        roleRequired: string;
+        city: string;
+        companyName: string;
+        scope?: 'admin' | 'recruiter';
+        recruiterId?: number;
+    };
+    AdminPendingQuiz: undefined;
+    AdminAnalytics: undefined;
+    AdminActiveJobs: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -87,6 +115,7 @@ export const AppNavigator = () => {
             >
                 <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
                 <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
+                <Stack.Screen name="SubRoleSelection" component={SubRoleSelectionScreen} />
                 <Stack.Screen name="ActionSelection" component={ActionSelectionScreen} />
                 <Stack.Screen name="Login" component={LoginScreen} />
                 <Stack.Screen name="RecruiterLogin" component={RecruiterLoginScreen} />
@@ -109,6 +138,7 @@ export const AppNavigator = () => {
 
                 <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
                 <Stack.Screen name="RecruiterDashboard" component={RecruiterDashboardScreen} />
+                <Stack.Screen name="RecruiterHiringHub" component={AdminApplicationsScreen} />
                 <Stack.Screen name="PostJob" component={PostJobScreen} />
                 <Stack.Screen name="PreviousJobs" component={PreviousJobsScreen} />
                 <Stack.Screen name="SkillVerification" component={SkillVerificationScreen} />
@@ -117,6 +147,12 @@ export const AppNavigator = () => {
                 <Stack.Screen name="AdminVerificationRecheck" component={AdminVerificationRecheckScreen} />
                 <Stack.Screen name="JobApplicants" component={JobApplicantsScreen} />
                 <Stack.Screen name="AdminCardOrders" component={AdminCardOrdersScreen} />
+                <Stack.Screen name="AdminApplications" component={AdminApplicationsScreen} />
+                <Stack.Screen name="HiringHubCompany" component={HiringHubCompanyScreen} />
+                <Stack.Screen name="AdminVacancyApplicants" component={AdminVacancyApplicantsScreen} />
+                <Stack.Screen name="AdminPendingQuiz" component={AdminPendingQuizScreen} />
+                <Stack.Screen name="AdminAnalytics" component={AdminAnalyticsScreen} />
+                <Stack.Screen name="AdminActiveJobs" component={AdminActiveJobsScreen} />
             </Stack.Navigator>
         </NavigationContainer>
     );

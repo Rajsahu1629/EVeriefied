@@ -10,29 +10,33 @@ import {
     Alert,
     StatusBar,
     TextInput,
+    Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
     Briefcase,
     MapPin,
     IndianRupee,
     Users,
+    Award,
     Building2,
     ChevronRight,
-    Home,
-    LogOut,
     CheckCircle,
     Search,
-    X
+    X,
 } from 'lucide-react-native';
+import { TabScreenHeader } from '../components/TabScreenHeader';
 import { useUser } from '../contexts/UserContext';
-import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
+import { colors, spacing, borderRadius, fontSize, layout } from '../lib/theme';
 import { getApprovedJobs, getUserAppliedJobIds, applyToJob } from '../lib/api';
-import { useNavigation } from '@react-navigation/native';
 import { LanguageSelector } from '../components/LanguageSelector';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { useLanguage } from '../contexts/LanguageContext';
+import {
+    formatJobExperience,
+    formatJobSalary,
+    formatVacancyCount,
+    formatVehicleCategory,
+} from '../lib/jobDisplay';
 
 // Types
 interface JobPost {
@@ -54,16 +58,54 @@ interface JobPost {
     job_description?: string;
 }
 
-export default function JobsScreen() {
-    const { userData, logout } = useUser();
-    const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+function sanitizePincode(value?: string): string {
+    return String(value || '').replace(/\D/g, '');
+}
 
+function normalizeCity(value?: string): string {
+    return String(value || '').trim().toLowerCase();
+}
+
+/**
+ * "Near" bucket for ranking:
+ * 0 = exact pincode
+ * 1 = same city
+ * 2 = same first-3 pincode and close last-3 (approx ~100km bucket)
+ * 3 = same first-3 pincode
+ * 9 = other locations
+ */
+function getLocationPriority(job: JobPost, userCity?: string, userPincode?: string): number {
+    const jobCity = normalizeCity(job.city);
+    const candidateCity = normalizeCity(userCity);
+    const jobPin = sanitizePincode(job.pincode);
+    const candidatePin = sanitizePincode(userPincode);
+
+    if (jobPin.length === 6 && candidatePin.length === 6) {
+        if (jobPin === candidatePin) return 0;
+        const samePrefix = jobPin.slice(0, 3) === candidatePin.slice(0, 3);
+        if (samePrefix) {
+            const last3Diff = Math.abs(parseInt(jobPin.slice(3), 10) - parseInt(candidatePin.slice(3), 10));
+            if (!Number.isNaN(last3Diff) && last3Diff <= 120) {
+                return 2;
+            }
+            return 3;
+        }
+    }
+
+    if (jobCity && candidateCity && jobCity === candidateCity) return 1;
+    return 9;
+}
+
+export default function JobsScreen() {
+    const { userData, isLoading: isUserLoading } = useUser();
+    const { t } = useLanguage();
     const [jobs, setJobs] = useState<JobPost[]>([]);
     const [appliedJobs, setAppliedJobs] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const [applyingTo, setApplyingTo] = useState<number | null>(null);
+    const [jobToApply, setJobToApply] = useState<JobPost | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredJobs, setFilteredJobs] = useState<JobPost[]>([]);
     const [salaryFilter, setSalaryFilter] = useState<number | null>(null); // Min salary filter
@@ -71,14 +113,17 @@ export default function JobsScreen() {
     // Fetch jobs from API
     const fetchJobs = useCallback(async () => {
         try {
-            const result = await getApprovedJobs();
+            const result = await getApprovedJobs({
+                userCity: userData?.city,
+                userPincode: userData?.pincode,
+            });
             setJobs(result);
             setFilteredJobs(result);
         } catch (error) {
             console.error('Error fetching jobs:', error);
-            Alert.alert('Error', 'Failed to load jobs. Please try again.');
+            Alert.alert(t('error'), t('failedToLoadJobs'));
         }
-    }, []);
+    }, [t, userData?.city, userData?.pincode]);
 
     // Fetch user's applied jobs
     const fetchAppliedJobs = useCallback(async () => {
@@ -92,15 +137,19 @@ export default function JobsScreen() {
         }
     }, [userData?.id]);
 
-    // Initial load
+    // Initial load — wait for stored user session so location params are sent to backend
     useEffect(() => {
+        if (isUserLoading) {
+            return;
+        }
+
         const loadData = async () => {
             setLoading(true);
             await Promise.all([fetchJobs(), fetchAppliedJobs()]);
             setLoading(false);
         };
         loadData();
-    }, [fetchJobs, fetchAppliedJobs]);
+    }, [fetchJobs, fetchAppliedJobs, isUserLoading]);
 
     // Pull to refresh
     const onRefresh = async () => {
@@ -109,33 +158,40 @@ export default function JobsScreen() {
         setRefreshing(false);
     };
 
-    // Apply to job
-    const handleApply = async (jobId: number) => {
+    const formatJobLocation = (job: JobPost) =>
+        job.city
+            ? `${job.city}${job.pincode ? ` (${job.pincode})` : ''}`
+            : job.pincode || t('locationTbd');
+
+    const openApplyConfirm = (job: JobPost) => {
         if (!userData?.id) {
-            Alert.alert('Error', 'Please login to apply for jobs');
+            Alert.alert(t('error'), t('loginToApply'));
+            return;
+        }
+        if (appliedJobs.has(job.id)) {
+            return;
+        }
+        setJobToApply(job);
+    };
+
+    const confirmApply = async () => {
+        if (!jobToApply || !userData?.id) {
             return;
         }
 
+        const jobId = jobToApply.id;
         setApplyingTo(jobId);
 
         try {
             await applyToJob(userData.id, jobId);
             setAppliedJobs(prev => new Set([...prev, jobId]));
+            setJobToApply(null);
         } catch (error) {
             console.error('Error applying to job:', error);
-            Alert.alert('Error', 'Failed to apply. Please try again.');
+            Alert.alert(t('error'), t('failedToApply'));
         } finally {
             setApplyingTo(null);
         }
-    };
-
-    // Logout handler
-    const handleLogout = async () => {
-        await logout();
-        navigation.reset({
-            index: 0,
-            routes: [{ name: 'RoleSelection' }],
-        });
     };
 
     // Filter jobs when search query or salary filter changes
@@ -160,38 +216,30 @@ export default function JobsScreen() {
             );
         }
 
+        // Priority order: nearest (approx 100km bucket) first, then all others
+        filtered.sort((a, b) => {
+            const aPriority = getLocationPriority(a, userData?.city, userData?.pincode);
+            const bPriority = getLocationPriority(b, userData?.city, userData?.pincode);
+            if (aPriority !== bPriority) return aPriority - bPriority;
+
+            const aTs = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bTs = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return bTs - aTs;
+        });
+
         setFilteredJobs(filtered);
-    }, [searchQuery, salaryFilter, jobs]);
+    }, [searchQuery, salaryFilter, jobs, userData?.city, userData?.pincode]);
 
-    // Format experience
-    const formatExperience = (exp: string): string => {
-        if (!exp) return '0-1 Years';
-        const lower = exp.toLowerCase();
-        if (lower === 'fresher' || lower === '0-1') return 'Fresher';
-        if (lower === '1-2') return '1+ Years';
-        if (lower === '2-5') return '2+ Years';
-        if (lower === '5+') return '5+ Years';
-        return exp + ' Years';
-    };
-
-    // Format salary
-    const formatSalary = (min: number | null, max: number | null): string => {
-        if (!min && !max) return 'Negotiable';
-        const formatK = (n: number) => n >= 1000 ? `₹${Math.round(n / 1000)}K` : `₹${n}`;
-        if (min && max) return `${formatK(min)} - ${formatK(max)}`;
-        if (min) return `${formatK(min)}+`;
-        return `Up to ${formatK(max!)}`;
-    };
 
     // Get role label
     const getRoleLabel = (role: string) => {
         switch (role) {
-            case 'technician': return 'EV Technician';
-            case 'bs6_technician': return 'BS6 Technician';
-            case 'sales': return 'Showroom Manager';
-            case 'workshop': return 'Workshop Manager';
-            case 'fresher': return 'Fresher';
-            default: return role || 'Professional';
+            case 'technician': return t('evTechnician');
+            case 'bs6_technician': return t('bs6Technician');
+            case 'sales': return t('evShowroomManager');
+            case 'workshop': return t('evWorkshopManager');
+            case 'fresher': return t('fresher');
+            default: return role || t('professional');
         }
     };
 
@@ -214,65 +262,75 @@ export default function JobsScreen() {
                 isApplied && styles.appliedJobCard
             ]}>
                 {/* Applied Badge */}
-                {isApplied && (
+                {isApplied ? (
                     <View style={styles.appliedBadgeTop}>
                         <CheckCircle size={14} color="#fff" />
-                        <Text style={styles.appliedBadgeText}>Applied</Text>
+                        <Text style={styles.appliedBadgeText}>{t('applied')}</Text>
                     </View>
-                )}
+                ) : null}
 
                 {/* Card Header - Similar to PreviousJobsScreen */}
                 <View style={[styles.cardHeader, isApplied && styles.blurredContent]}>
                     <View style={styles.iconContainer}>
-                        <Briefcase size={24} color={colors.primary} />
+                        <Briefcase size={20} color={colors.primary} />
                     </View>
                     <View style={styles.headerInfo}>
                         <Text style={styles.roleTitle}>
                             {getRoleLabel(item.role_required)}
-                            {item.vehicle_category ? ` (${item.vehicle_category})` : ''}
+                            {item.vehicle_category
+                                ? ` (${formatVehicleCategory(item.vehicle_category, t)})`
+                                : null}
                         </Text>
-                        {item.training_role && (
+                        {item.training_role ? (
                             <Text style={styles.trainingRoleText}>
                                 {item.training_role}
                             </Text>
-                        )}
-                        <Text style={styles.brandText}>{item.brand || 'Company'}</Text>
+                        ) : null}
+                        <Text style={styles.brandText}>{item.brand || t('company')}</Text>
                     </View>
                 </View>
 
                 {/* Salary */}
                 <Text style={[styles.salaryText, isApplied && styles.blurredContent]}>
-                    {formatSalary(item.salary_min, item.salary_max)} per month
+                    {formatJobSalary(item.salary_min, item.salary_max, t)} {t('perMonth')}
                 </Text>
 
                 {/* Location */}
                 <View style={[styles.locationRow, isApplied && styles.blurredContent]}>
                     <MapPin size={16} color="#ef4444" />
                     <Text style={styles.locationText}>
-                        {item.city ? `${item.city} (${item.pincode})` : item.pincode || 'Location TBD'}
+                        {item.city ? `${item.city} (${item.pincode})` : item.pincode || t('locationTbd')}
                     </Text>
                 </View>
 
                 {/* Tags Row */}
                 <View style={[styles.tagsContainer, isApplied && styles.blurredContent]}>
-                    {isNew && (
+                    {isNew ? (
                         <View style={[styles.tagChip, styles.tagNew]}>
                             <Text style={styles.tagChipIcon}>⚡</Text>
-                            <Text style={[styles.tagChipText, { color: '#059669' }]}>New</Text>
+                            <Text style={[styles.tagChipText, { color: '#059669' }]}>{t('recentTag')}</Text>
                         </View>
-                    )}
+                    ) : null}
                     <View style={[styles.tagChip, styles.tagRegular]}>
                         <Text style={styles.tagChipIcon}>⏱</Text>
                         <Text style={styles.tagChipText}>
-                            {item.urgency === 'immediate' ? 'Urgent' : 'Regular'}
+                            {item.urgency === 'immediate' ? t('urgent') : t('regular')}
                         </Text>
                     </View>
                     <View style={[styles.tagChip, styles.tagVacancies]}>
                         <Users size={12} color="#ea580c" />
                         <Text style={[styles.tagChipText, { color: '#ea580c' }]}>
-                            {item.number_of_people || '1'} Vacancies
+                            {formatVacancyCount(item.number_of_people, t)}
                         </Text>
                     </View>
+                    {item.has_incentive ? (
+                        <View style={[styles.tagChip, styles.tagIncentive]}>
+                            <Award size={12} color="#059669" />
+                            <Text style={[styles.tagChipText, { color: '#059669' }]}>
+                                {t('incentive')}
+                            </Text>
+                        </View>
+                    ) : null}
                 </View>
 
                 {/* Experience Tag + Vehicle Category Tag */}
@@ -280,27 +338,27 @@ export default function JobsScreen() {
                     <View style={styles.experienceTag}>
                         <Building2 size={14} color="#ca8a04" />
                         <Text style={styles.experienceTagText}>
-                            {formatExperience(item.experience)}
+                            {formatJobExperience(item.experience, t)}
                         </Text>
                     </View>
-                    {item.vehicle_category && (
+                    {item.vehicle_category ? (
                         <View style={styles.vehicleCategoryTag}>
                             <Text style={styles.vehicleCategoryText}>
-                                🏍️ {item.vehicle_category === '2W' ? '2 Wheeler' : '3 Wheeler'}
+                                🏍️ {formatVehicleCategory(item.vehicle_category, t)}
                             </Text>
                         </View>
-                    )}
+                    ) : null}
                 </View>
 
                 {/* Job Description */}
-                {item.job_description && (
+                {item.job_description?.trim() ? (
                     <View style={[styles.jobDescriptionContainer, isApplied && styles.blurredContent]}>
-                        <Text style={styles.jobDescriptionLabel}>About the Role:</Text>
+                        <Text style={styles.jobDescriptionLabel}>{t('aboutTheRole')}</Text>
                         <Text style={styles.jobDescriptionText} numberOfLines={3}>
                             {item.job_description}
                         </Text>
                     </View>
-                )}
+                ) : null}
 
                 {/* Apply Button */}
                 <TouchableOpacity
@@ -308,7 +366,7 @@ export default function JobsScreen() {
                         styles.applyButton,
                         isApplied && styles.appliedButton
                     ]}
-                    onPress={() => handleApply(item.id)}
+                    onPress={() => openApplyConfirm(item)}
                     disabled={isApplied || isApplying}
                 >
                     {isApplying ? (
@@ -316,11 +374,11 @@ export default function JobsScreen() {
                     ) : isApplied ? (
                         <>
                             <CheckCircle size={18} color="#fff" />
-                            <Text style={styles.applyButtonText}>Applied</Text>
+                            <Text style={styles.applyButtonText}>{t('applied')}</Text>
                         </>
                     ) : (
                         <>
-                            <Text style={styles.applyButtonText}>Apply Now</Text>
+                            <Text style={styles.applyButtonText}>{t('applyNow')}</Text>
                             <ChevronRight size={18} color="#fff" />
                         </>
                     )}
@@ -332,115 +390,166 @@ export default function JobsScreen() {
     // Empty state
     const EmptyState = () => (
         <View style={styles.emptyState}>
-            <Briefcase size={64} color={colors.muted} />
-            <Text style={styles.emptyTitle}>No Jobs Available</Text>
+            <Briefcase size={48} color={colors.muted} />
+            <Text style={styles.emptyTitle}>{t('noJobsAvailable')}</Text>
             <Text style={styles.emptySubtitle}>
-                Check back later for new opportunities
+                {t('noJobsAvailableDesc')}
             </Text>
         </View>
     );
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" />
+    const salaryFilters = [
+        { label: t('filterAll'), value: null },
+        { label: '₹10K+', value: 10000 },
+        { label: '₹15K+', value: 15000 },
+        { label: '₹20K+', value: 20000 },
+    ] as const;
 
-            {/* Header */}
-            <LinearGradient
-                colors={['#1a9d6e', '#137a55']}
-                style={styles.headerBackground}
-            >
-                <View style={styles.headerContent}>
-                    <View>
-                        <Text style={styles.welcomeText}>
-                            Welcome, {userData?.fullName?.split(' ')[0] || 'User'}!
-                        </Text>
-                        <Text style={styles.headerSubtitle}>
-                            {userData?.role === 'technician' ? 'EV Technician' :
-                                userData?.role === 'sales' ? 'EV Showroom Manager' :
-                                    userData?.role === 'workshop' ? 'EV Workshop Manager' : 'EV Professional'}
-                        </Text>
-                    </View>
-                    <View style={styles.headerActions}>
-                        <LanguageSelector color="#fff" />
-                        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                            <LogOut size={24} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </LinearGradient>
-
-            {/* Content */}
-            <View style={styles.content}>
-                <View style={styles.sectionHeader}>
-                    <Briefcase size={20} color={colors.foreground} />
-                    <Text style={styles.sectionTitle}>Apply for Jobs</Text>
-                </View>
-
-                {/* Search Bar */}
-                <View style={styles.searchContainer}>
-                    <Search size={20} color={colors.muted} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search by city (e.g. Delhi) or pincode..."
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholderTextColor={colors.muted}
-                    />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearchQuery('')}>
-                            <X size={20} color={colors.muted} />
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                {/* Salary Filter Chips */}
-                <View style={styles.filterRow}>
-                    <Text style={styles.filterLabel}>Salary:</Text>
-                    {[
-                        { label: 'All', value: null },
-                        { label: '₹10K+', value: 10000 },
-                        { label: '₹15K+', value: 15000 },
-                        { label: '₹20K+', value: 20000 },
-                    ].map((filter) => (
-                        <TouchableOpacity
-                            key={filter.label}
+    const ListHeader = () => (
+        <View style={styles.listHeader}>
+            <View style={styles.searchContainer}>
+                <Search size={18} color={colors.muted} />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder={t('searchJobsPlaceholder')}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholderTextColor={colors.muted}
+                />
+                {searchQuery.length > 0 ? (
+                    <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                        <X size={18} color={colors.muted} />
+                    </TouchableOpacity>
+                ) : null}
+            </View>
+            <View style={styles.filterRow}>
+                {salaryFilters.map((filter) => (
+                    <TouchableOpacity
+                        key={filter.label}
+                        style={[
+                            styles.filterChip,
+                            salaryFilter === filter.value && styles.filterChipActive,
+                        ]}
+                        onPress={() => setSalaryFilter(filter.value)}
+                    >
+                        <Text
                             style={[
-                                styles.filterChip,
-                                salaryFilter === filter.value && styles.filterChipActive,
-                            ]}
-                            onPress={() => setSalaryFilter(filter.value)}
-                        >
-                            <Text style={[
                                 styles.filterChipText,
                                 salaryFilter === filter.value && styles.filterChipTextActive,
-                            ]}>{filter.label}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                {loading ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={styles.loadingText}>Loading jobs...</Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={filteredJobs}
-                        renderItem={renderJobCard}
-                        keyExtractor={item => item.id.toString()}
-                        contentContainerStyle={styles.listContent}
-                        showsVerticalScrollIndicator={false}
-                        refreshControl={
-                            <RefreshControl
-                                refreshing={refreshing}
-                                onRefresh={onRefresh}
-                                colors={[colors.primary]}
-                            />
-                        }
-                        ListEmptyComponent={EmptyState}
-                    />
-                )}
+                            ]}
+                        >
+                            {filter.label}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
             </View>
+        </View>
+    );
+
+    return (
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <StatusBar barStyle="light-content" />
+
+            <TabScreenHeader
+                title={t('jobs')}
+                icon={<Briefcase size={20} color={colors.primaryForeground} />}
+                right={<LanguageSelector color="#fff" />}
+            />
+
+            {loading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={styles.loadingText}>{t('loadingJobs')}</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredJobs}
+                    renderItem={renderJobCard}
+                    keyExtractor={(item) => item.id.toString()}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    ListHeaderComponent={ListHeader}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[colors.primary]}
+                        />
+                    }
+                    ListEmptyComponent={EmptyState}
+                />
+            )}
+
+            <Modal
+                visible={jobToApply !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => !applyingTo && setJobToApply(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>{t('confirmApplication')}</Text>
+                        <Text style={styles.modalSubtitle}>{t('confirmApplicationDesc')}</Text>
+
+                        {jobToApply ? (
+                            <View style={styles.modalSummary}>
+                                <View style={styles.modalRow}>
+                                    <Briefcase size={18} color={colors.primary} />
+                                    <View style={styles.modalRowText}>
+                                        <Text style={styles.modalLabel}>{t('jobRole')}</Text>
+                                        <Text style={styles.modalValue}>
+                                            {getRoleLabel(jobToApply.role_required)}
+                                            {jobToApply.brand ? ` · ${jobToApply.brand}` : ''}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <MapPin size={18} color="#ef4444" />
+                                    <View style={styles.modalRowText}>
+                                        <Text style={styles.modalLabel}>{t('location')}</Text>
+                                        <Text style={styles.modalValue}>
+                                            {formatJobLocation(jobToApply)}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.modalRow}>
+                                    <IndianRupee size={18} color={colors.primary} />
+                                    <View style={styles.modalRowText}>
+                                        <Text style={styles.modalLabel}>{t('salary')}</Text>
+                                        <Text style={styles.modalValue}>
+                                            {formatJobSalary(
+                                                jobToApply.salary_min,
+                                                jobToApply.salary_max,
+                                                t
+                                            )}{' '}
+                                            {t('perMonth')}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                        ) : null}
+
+                        <TouchableOpacity
+                            style={styles.modalConfirmButton}
+                            onPress={confirmApply}
+                            disabled={applyingTo !== null}
+                        >
+                            {applyingTo !== null ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                                <Text style={styles.modalConfirmText}>{t('confirm')}</Text>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.modalCancelButton}
+                            onPress={() => setJobToApply(null)}
+                            disabled={applyingTo !== null}
+                        >
+                            <Text style={styles.modalCancelText}>{t('cancel')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -448,69 +557,35 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: '#f8fafc',
     },
-    headerBackground: {
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.xl,
-        paddingHorizontal: spacing.lg,
-    },
-    headerContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    welcomeText: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
-    headerSubtitle: {
-        fontSize: 14,
-        color: 'rgba(255,255,255,0.8)',
-        marginTop: 2,
-    },
-    logoutButton: {
-        padding: spacing.sm,
-    },
-    content: {
-        flex: 1,
-        paddingHorizontal: spacing.lg,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    listHeader: {
+        paddingBottom: spacing.sm,
         gap: spacing.sm,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.md,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.card,
-        borderRadius: borderRadius.lg,
+        borderRadius: borderRadius.md,
         paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
+        height: layout.inputHeight,
         borderWidth: 1,
         borderColor: colors.border,
-        marginBottom: spacing.md,
         gap: spacing.sm,
     },
     searchInput: {
         flex: 1,
-        fontSize: fontSize.base,
+        fontSize: fontSize.sm,
         color: colors.foreground,
-        padding: 0, // Remove default padding on Android
-        height: 40,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.foreground,
+        padding: 0,
+        height: layout.inputHeight,
     },
     listContent: {
-        paddingBottom: 100,
-        gap: spacing.md,
+        paddingHorizontal: layout.screenPaddingX,
+        paddingTop: layout.screenPaddingY,
+        paddingBottom: 88,
+        gap: layout.cardGap,
     },
     loadingContainer: {
         flex: 1,
@@ -526,16 +601,16 @@ const styles = StyleSheet.create({
     // Job Card Styles
     jobCard: {
         backgroundColor: colors.card,
-        borderRadius: borderRadius.xl,
-        padding: spacing.lg,
+        borderRadius: borderRadius.lg,
+        padding: layout.cardPaddingLg,
         borderWidth: 1,
         borderColor: colors.border,
     },
     cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.md,
-        marginBottom: spacing.md,
+        gap: spacing.sm,
+        marginBottom: spacing.sm,
     },
     companyIcon: {
         width: 44,
@@ -599,9 +674,9 @@ const styles = StyleSheet.create({
     },
     // New styles for redesigned card
     iconContainer: {
-        width: 50,
-        height: 50,
-        borderRadius: 12,
+        width: layout.avatarMd,
+        height: layout.avatarMd,
+        borderRadius: borderRadius.md,
         backgroundColor: colors.primary + '15',
         alignItems: 'center',
         justifyContent: 'center',
@@ -610,36 +685,36 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     roleTitle: {
-        fontSize: 17,
+        fontSize: fontSize.base,
         fontWeight: '700',
-        color: colors.primary,
+        color: colors.foreground,
     },
     trainingRoleText: {
-        fontSize: 14,
+        fontSize: fontSize.sm,
         color: colors.primary,
         fontWeight: '500',
-        marginTop: 2,
+        marginTop: 1,
     },
     brandText: {
-        fontSize: 13,
+        fontSize: fontSize.sm,
         color: colors.muted,
-        marginTop: 2,
+        marginTop: 1,
     },
     salaryText: {
-        fontSize: 16,
+        fontSize: fontSize.base,
         fontWeight: '700',
         color: colors.primary,
-        marginTop: spacing.sm,
+        marginTop: spacing.xs,
         marginBottom: spacing.xs,
     },
     locationRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        marginBottom: spacing.md,
+        gap: 4,
+        marginBottom: spacing.sm,
     },
     locationText: {
-        fontSize: 14,
+        fontSize: fontSize.sm,
         color: colors.muted,
     },
     tagsContainer: {
@@ -651,11 +726,11 @@ const styles = StyleSheet.create({
     tagChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 16,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: borderRadius.full,
         borderWidth: 1,
-        gap: 4,
+        gap: 3,
     },
     tagNew: {
         backgroundColor: '#d1fae5',
@@ -669,8 +744,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffedd5',
         borderColor: '#fdba74',
     },
+    tagIncentive: {
+        backgroundColor: '#d1fae5',
+        borderColor: '#86efac',
+    },
     tagChipText: {
-        fontSize: 12,
+        fontSize: fontSize.xs,
         fontWeight: '500',
         color: colors.foreground,
     },
@@ -683,13 +762,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#fef9c3',
         borderColor: '#fde047',
         borderWidth: 1,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 16,
-        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: borderRadius.full,
+        gap: 3,
     },
     experienceTagText: {
-        fontSize: 12,
+        fontSize: fontSize.xs,
         fontWeight: '600',
         color: '#ca8a04',
     },
@@ -697,7 +776,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: spacing.xs,
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
     },
     vehicleCategoryTag: {
         flexDirection: 'row',
@@ -705,21 +784,21 @@ const styles = StyleSheet.create({
         backgroundColor: '#dbeafe',
         borderColor: '#93c5fd',
         borderWidth: 1,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 16,
-        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: borderRadius.full,
+        gap: 3,
     },
     vehicleCategoryText: {
-        fontSize: 12,
+        fontSize: fontSize.xs,
         fontWeight: '600',
         color: '#1d4ed8',
     },
     jobDescriptionContainer: {
         backgroundColor: '#f9fafb',
-        borderRadius: 8,
+        borderRadius: borderRadius.sm,
         padding: spacing.sm,
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
         borderWidth: 1,
         borderColor: '#e5e7eb',
     },
@@ -739,15 +818,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: colors.primary,
-        paddingVertical: 12,
-        borderRadius: borderRadius.lg,
+        minHeight: layout.buttonHeight,
+        borderRadius: borderRadius.md,
         gap: spacing.xs,
     },
     appliedButton: {
         backgroundColor: '#10b981', // Green as requested
     },
     applyButtonText: {
-        fontSize: 15,
+        fontSize: fontSize.sm,
         fontWeight: '600',
         color: '#fff',
     },
@@ -797,28 +876,16 @@ const styles = StyleSheet.create({
         color: colors.muted,
         marginTop: spacing.xs,
     },
-    headerActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-    },
-    // Filter styles
     filterRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
+        flexWrap: 'wrap',
         gap: spacing.xs,
-    },
-    filterLabel: {
-        fontSize: 12,
-        color: colors.muted,
-        marginRight: spacing.xs,
     },
     filterChip: {
         paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: 16,
+        paddingVertical: 5,
+        borderRadius: borderRadius.full,
         backgroundColor: colors.secondary,
         borderWidth: 1,
         borderColor: colors.border,
@@ -834,5 +901,87 @@ const styles = StyleSheet.create({
     filterChipTextActive: {
         color: '#fff',
         fontWeight: '600',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: spacing.lg,
+    },
+    modalCard: {
+        backgroundColor: colors.card,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    modalTitle: {
+        fontSize: fontSize.lg,
+        fontWeight: '700',
+        color: colors.foreground,
+        textAlign: 'center',
+    },
+    modalSubtitle: {
+        fontSize: fontSize.sm,
+        color: colors.muted,
+        textAlign: 'center',
+        marginTop: spacing.xs,
+        marginBottom: spacing.md,
+    },
+    modalSummary: {
+        gap: spacing.sm,
+        marginBottom: spacing.lg,
+        padding: spacing.md,
+        backgroundColor: '#f8fafc',
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    modalRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing.sm,
+    },
+    modalRowText: {
+        flex: 1,
+    },
+    modalLabel: {
+        fontSize: fontSize.xs,
+        color: colors.muted,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+    },
+    modalValue: {
+        fontSize: fontSize.sm,
+        color: colors.foreground,
+        fontWeight: '600',
+        marginTop: 2,
+    },
+    modalConfirmButton: {
+        backgroundColor: colors.primary,
+        minHeight: layout.buttonHeight,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalConfirmText: {
+        fontSize: fontSize.sm,
+        fontWeight: '600',
+        color: '#fff',
+    },
+    modalCancelButton: {
+        minHeight: layout.buttonHeight,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    modalCancelText: {
+        fontSize: fontSize.sm,
+        fontWeight: '600',
+        color: colors.muted,
     },
 });

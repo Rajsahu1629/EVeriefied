@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Phone, MapPin, CreditCard } from 'lucide-react-native';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
-import { getAllCardOrders } from '../lib/api';
+import { getAllCardOrders, updateCardFulfillment } from '../lib/api';
 
 export default function AdminCardOrdersScreen() {
     const navigation = useNavigation();
@@ -43,6 +43,22 @@ export default function AdminCardOrdersScreen() {
         fetchOrders();
     };
 
+    const setFulfillment = async (userId: string, status: 'fulfilled' | 'shipped') => {
+        try {
+            await updateCardFulfillment(userId, status);
+            fetchOrders();
+            Alert.alert('Updated', `Marked as ${status}`);
+        } catch {
+            Alert.alert('Error', 'Failed to update');
+        }
+    };
+
+    const fulfillmentLabel = (s: string) => {
+        if (s === 'shipped') return 'Shipped';
+        if (s === 'fulfilled') return 'Fulfilled';
+        return 'Ordered';
+    };
+
     const renderOrderItem = ({ item }: { item: any }) => (
         <View style={styles.orderCard}>
             <View style={styles.cardHeader}>
@@ -52,7 +68,7 @@ export default function AdminCardOrdersScreen() {
                 </View>
                 <View style={styles.statusBadge}>
                     <CreditCard size={14} color="#059669" />
-                    <Text style={styles.statusText}>Ordered</Text>
+                    <Text style={styles.statusText}>{fulfillmentLabel(item.card_fulfillment_status)}</Text>
                 </View>
             </View>
 
@@ -71,6 +87,20 @@ export default function AdminCardOrdersScreen() {
                 <Text style={styles.orderDate}>
                     Ordered on: {new Date(item.updated_at).toLocaleDateString()}
                 </Text>
+            </View>
+            <View style={styles.actionRow}>
+                <TouchableOpacity
+                    style={styles.fulfillBtn}
+                    onPress={() => setFulfillment(item.id, 'fulfilled')}
+                >
+                    <Text style={styles.fulfillBtnText}>Mark fulfilled</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.shipBtn}
+                    onPress={() => setFulfillment(item.id, 'shipped')}
+                >
+                    <Text style={styles.shipBtnText}>Mark shipped</Text>
+                </TouchableOpacity>
             </View>
         </View>
     );
@@ -214,4 +244,9 @@ const styles = StyleSheet.create({
         fontSize: fontSize.base,
         color: colors.muted,
     },
+    actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+    fulfillBtn: { flex: 1, backgroundColor: '#7c3aed', padding: spacing.sm, borderRadius: borderRadius.lg, alignItems: 'center' },
+    fulfillBtnText: { color: '#fff', fontWeight: '600', fontSize: fontSize.sm },
+    shipBtn: { flex: 1, backgroundColor: '#059669', padding: spacing.sm, borderRadius: borderRadius.lg, alignItems: 'center' },
+    shipBtnText: { color: '#fff', fontWeight: '600', fontSize: fontSize.sm },
 });

@@ -63,7 +63,8 @@
           "icon": "./assets/icon.png",
           "color": "#10b981"
         }
-      ]
+      ],
+      "expo-localization"
     ]
   }
 }

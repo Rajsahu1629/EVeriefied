@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity, Modal, ScrollView, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, fontSize } from '../lib/theme';
+import { colors, spacing, borderRadius, fontSize, layout } from '../lib/theme';
+import { TabScreenHeader } from '../components/TabScreenHeader';
 import {
     Briefcase, MapPin, CheckCircle, Clock, Building2,
     Calendar, Users, Award, Home, Zap, Send, XCircle
 } from 'lucide-react-native';
 import { useUser } from '../contexts/UserContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { getUserApplications } from '../lib/api';
 
 // Type for applied job with job details
@@ -15,6 +17,7 @@ interface AppliedJob {
     job_post_id: number;
     status: string;
     applied_at: string;
+    status_updated_at?: string;
     // Job post details
     brand: string;
     role_required: string;
@@ -27,9 +30,13 @@ interface AppliedJob {
     stay_provided: boolean;
     number_of_people: string;
     job_description: string;
+    rejection_reason?: string;
 }
 
+const SUPPORT_PHONE = '919473928468';
+
 export default function AppliedJobsScreen() {
+    const { t } = useLanguage();
     const { userData } = useUser();
     const [applications, setApplications] = useState<AppliedJob[]>([]);
     const [loading, setLoading] = useState(true);
@@ -74,13 +81,13 @@ export default function AppliedJobsScreen() {
             const diffTime = Math.abs(now.getTime() - date.getTime());
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-            if (diffDays === 0) return 'Today';
-            if (diffDays === 1) return 'Yesterday';
-            if (diffDays < 7) return `${diffDays} days ago`;
-            if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${diffDays >= 14 ? 's' : ''} ago`;
-            return `${Math.floor(diffDays / 30)} month${diffDays >= 60 ? 's' : ''} ago`;
+            if (diffDays === 0) return t('today');
+            if (diffDays === 1) return t('yesterday');
+            if (diffDays < 7) return t('daysAgo', { count: diffDays });
+            if (diffDays < 30) return t('weeksAgo', { count: Math.floor(diffDays / 7) });
+            return t('monthsAgo', { count: Math.floor(diffDays / 30) });
         } catch {
-            return 'Recently';
+            return t('recently');
         }
     };
 
@@ -88,22 +95,22 @@ export default function AppliedJobsScreen() {
     const getStatusConfig = (status: string) => {
         switch (status?.toLowerCase()) {
             case 'shortlisted':
-                return { text: 'Shortlisted', color: '#8b5cf6', bgColor: '#ede9fe', icon: CheckCircle };
+                return { text: t('shortlistedStatus'), color: '#8b5cf6', bgColor: '#ede9fe', icon: CheckCircle };
             case 'interview':
-                return { text: 'Interview', color: '#0ea5e9', bgColor: '#e0f2fe', icon: Calendar };
+                return { text: t('interview'), color: '#0ea5e9', bgColor: '#e0f2fe', icon: Calendar };
             case 'rejected':
-                return { text: 'Not Selected', color: '#ef4444', bgColor: '#fee2e2', icon: Clock };
+                return { text: t('notSelected'), color: '#ef4444', bgColor: '#fee2e2', icon: Clock };
             case 'hired':
-                return { text: 'Hired! 🎉', color: '#059669', bgColor: '#d1fae5', icon: Award };
+                return { text: t('hiredCelebration'), color: '#059669', bgColor: '#d1fae5', icon: Award };
             default:
-                return { text: 'Applied', color: '#1a9d6e', bgColor: '#d1fae5', icon: Send };
+                return { text: t('applied'), color: '#1a9d6e', bgColor: '#d1fae5', icon: Send };
         }
     };
 
     // Format salary
     const formatSalary = (min: number, max: number) => {
         const formatK = (n: number) => n >= 1000 ? `${Math.round(n / 1000)}K` : n.toString();
-        if (!min && !max) return 'Negotiable';
+        if (!min && !max) return t('negotiable');
         if (min && max) return `₹ ${formatK(min)} - ₹ ${formatK(max)}`;
         if (min) return `₹ ${formatK(min)}+`;
         return `Up to ₹ ${formatK(max)}`;
@@ -112,10 +119,10 @@ export default function AppliedJobsScreen() {
     // Get role label
     const getRoleLabel = (role: string) => {
         switch (role) {
-            case 'technician': return 'EV Technician';
-            case 'sales': return 'EV Showroom Manager';
-            case 'workshop': return 'EV Workshop Manager';
-            default: return role || 'Job Role';
+            case 'technician': return t('evTechnician');
+            case 'sales': return t('evShowroomManager');
+            case 'workshop': return t('evWorkshopManager');
+            default: return role || t('jobRole');
         }
     };
 
@@ -124,6 +131,21 @@ export default function AppliedJobsScreen() {
         const statusConfig = getStatusConfig(item.status);
         const StatusIcon = statusConfig.icon;
         const isRecent = new Date(item.applied_at) > new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+        const lastMovementAt = item.status_updated_at || item.applied_at;
+        const movementDate = new Date(lastMovementAt);
+        const daysSinceMovement = Number.isNaN(movementDate.getTime())
+            ? 0
+            : Math.floor((Date.now() - movementDate.getTime()) / (1000 * 60 * 60 * 24));
+        const statusKey = (item.status || '').toLowerCase();
+        const pendingTooLong =
+            daysSinceMovement >= 3 && !['hired', 'rejected'].includes(statusKey);
+
+        const contactSupport = () => {
+            const message = `Hi EVerified Support, there is no status movement for ${daysSinceMovement} day(s) on my application.\n\nCandidate: ${userData?.fullName || 'User'}\nJob: ${getRoleLabel(item.role_required)} at ${item.brand}\nCurrent Stage: ${item.status}\nLocation: ${item.city || 'N/A'}\nApplication ID: ${item.id}`;
+            Linking.openURL(`whatsapp://send?phone=${SUPPORT_PHONE}&text=${encodeURIComponent(message)}`).catch(() => {
+                Alert.alert(t('whatsappNotInstalled'), t('installWhatsapp'));
+            });
+        };
 
         return (
             <TouchableOpacity
@@ -137,7 +159,7 @@ export default function AppliedJobsScreen() {
                 {/* Applied Badge */}
                 <View style={styles.appliedBadge}>
                     <CheckCircle size={12} color="#fff" />
-                    <Text style={styles.appliedBadgeText}>Applied</Text>
+                    <Text style={styles.appliedBadgeText}>{t('applied')}</Text>
                 </View>
 
                 {/* Card Header */}
@@ -147,49 +169,49 @@ export default function AppliedJobsScreen() {
                     </View>
                     <View style={styles.headerInfo}>
                         <Text style={styles.roleText}>{getRoleLabel(item.role_required)}</Text>
-                        <Text style={styles.companyText}>{item.brand || 'Company'}</Text>
+                        <Text style={styles.companyText}>{item.brand || t('company')}</Text>
                     </View>
                 </View>
 
                 {/* Salary Row */}
                 <View style={styles.salaryRow}>
-                    <Text style={styles.salaryText}>{formatSalary(item.salary_min, item.salary_max)} per month</Text>
+                    <Text style={styles.salaryText}>{formatSalary(item.salary_min, item.salary_max)} {t('perMonth')}</Text>
                 </View>
 
                 {/* Location */}
                 <View style={styles.locationRow}>
                     <MapPin size={14} color="#ef4444" />
                     <Text style={styles.locationText}>
-                        {item.city || 'Location TBD'} {item.pincode ? `(${item.pincode})` : ''}
+                        {item.city || t('locationTbd')}{item.pincode ? ` (${item.pincode})` : null}
                     </Text>
                 </View>
 
                 {/* Tags Row */}
                 <View style={styles.tagsRow}>
-                    {isRecent && (
+                    {isRecent ? (
                         <View style={[styles.tag, { backgroundColor: '#dbeafe' }]}>
                             <Zap size={12} color="#2563eb" />
-                            <Text style={[styles.tagText, { color: '#2563eb' }]}>Recent</Text>
+                            <Text style={[styles.tagText, { color: '#2563eb' }]}>{t('recent')}</Text>
                         </View>
-                    )}
-                    {item.has_incentive && (
+                    ) : null}
+                    {item.has_incentive ? (
                         <View style={[styles.tag, { backgroundColor: '#d1fae5' }]}>
                             <Award size={12} color="#059669" />
-                            <Text style={[styles.tagText, { color: '#059669' }]}>Incentive</Text>
+                            <Text style={[styles.tagText, { color: '#059669' }]}>{t('incentive')}</Text>
                         </View>
-                    )}
-                    {item.stay_provided && (
+                    ) : null}
+                    {item.stay_provided ? (
                         <View style={[styles.tag, { backgroundColor: '#ede9fe' }]}>
                             <Home size={12} color="#7c3aed" />
-                            <Text style={[styles.tagText, { color: '#7c3aed' }]}>Stay</Text>
+                            <Text style={[styles.tagText, { color: '#7c3aed' }]}>{t('stay')}</Text>
                         </View>
-                    )}
-                    {item.number_of_people && (
+                    ) : null}
+                    {item.number_of_people != null && String(item.number_of_people) !== '' ? (
                         <View style={[styles.tag, { backgroundColor: '#fef3c7' }]}>
                             <Users size={12} color="#d97706" />
-                            <Text style={[styles.tagText, { color: '#d97706' }]}>{item.number_of_people} Vacancies</Text>
+                            <Text style={[styles.tagText, { color: '#d97706' }]}>{item.number_of_people} {t('vacancies')}</Text>
                         </View>
-                    )}
+                    ) : null}
                 </View>
 
                 {/* Divider */}
@@ -199,7 +221,7 @@ export default function AppliedJobsScreen() {
                 <View style={styles.cardFooter}>
                     <View style={styles.timeInfo}>
                         <Calendar size={14} color={colors.muted} />
-                        <Text style={styles.timeText}>Applied {formatDate(item.applied_at)}</Text>
+                        <Text style={styles.timeText}>{t('appliedOn', { date: formatDate(item.applied_at) })}</Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
                         <StatusIcon size={12} color={statusConfig.color} />
@@ -209,16 +231,34 @@ export default function AppliedJobsScreen() {
                     </View>
                 </View>
 
+                {item.status === 'rejected' && item.rejection_reason ? (
+                    <Text style={styles.rejectionReason}>
+                        {t('rejectionReason')}: {item.rejection_reason}
+                    </Text>
+                ) : null}
+
+                <TouchableOpacity
+                    style={[styles.supportCta, !pendingTooLong && styles.supportCtaDisabled]}
+                    onPress={contactSupport}
+                    activeOpacity={pendingTooLong ? 0.85 : 1}
+                    disabled={!pendingTooLong}
+                >
+                    <Text style={styles.supportCtaTitle}>{t('noResponseIn3Days')}</Text>
+                    <Text style={[styles.supportCtaLink, !pendingTooLong && styles.supportCtaLinkDisabled]}>
+                        {pendingTooLong ? t('contactSupportNow') : t('contactSupportWait')}
+                    </Text>
+                </TouchableOpacity>
+
                 {/* Workflow Tracker (Candidates) */}
                 <View style={styles.workflowSection}>
-                    <Text style={styles.workflowTitle}>Application Status</Text>
+                    <Text style={styles.workflowTitle}>{t('applicationStatus')}</Text>
                     <View style={styles.workflowContainer}>
                         {/* Step 1: Applied */}
                         <View style={styles.workflowStep}>
                             <View style={[styles.stepCircle, { backgroundColor: '#10b981' }]}>
                                 <CheckCircle size={10} color="#fff" />
                             </View>
-                            <Text style={styles.stepLabel}>Applied</Text>
+                            <Text style={styles.stepLabel}>{t('applied')}</Text>
                         </View>
 
                         <View style={[styles.stepLine, { backgroundColor: item.status !== 'applied' ? '#10b981' : '#e2e8f0' }]} />
@@ -230,7 +270,7 @@ export default function AppliedJobsScreen() {
                             }]}>
                                 {(item.status === 'viewed' || item.status === 'shortlisted' || item.status === 'interview' || item.status === 'hired' || item.status === 'rejected') ? <CheckCircle size={10} color="#fff" /> : <Clock size={10} color="#94a3b8" />}
                             </View>
-                            <Text style={styles.stepLabel}>In Review</Text>
+                            <Text style={styles.stepLabel}>{t('inReview')}</Text>
                         </View>
 
                         <View style={[styles.stepLine, { backgroundColor: (item.status === 'shortlisted' || item.status === 'interview' || item.status === 'hired' || item.status === 'rejected') ? '#10b981' : '#e2e8f0' }]} />
@@ -242,7 +282,7 @@ export default function AppliedJobsScreen() {
                             }]}>
                                 {item.status === 'rejected' ? <XCircle size={10} color="#fff" /> : ((item.status === 'shortlisted' || item.status === 'interview' || item.status === 'hired') ? <Users size={10} color="#fff" /> : <Zap size={10} color="#94a3b8" />)}
                             </View>
-                            <Text style={styles.stepLabel}>{item.status === 'rejected' ? 'Rejected' : 'Shortlist'}</Text>
+                            <Text style={styles.stepLabel}>{item.status === 'rejected' ? t('rejectedStatus') : t('shortlist')}</Text>
                         </View>
 
                         <View style={[styles.stepLine, { backgroundColor: item.status === 'hired' ? '#10b981' : '#e2e8f0' }]} />
@@ -254,7 +294,7 @@ export default function AppliedJobsScreen() {
                             }]}>
                                 {item.status === 'hired' ? <Award size={10} color="#fff" /> : <Award size={10} color="#94a3b8" />}
                             </View>
-                            <Text style={styles.stepLabel}>Hired</Text>
+                            <Text style={styles.stepLabel}>{t('hired')}</Text>
                         </View>
                     </View>
                 </View>
@@ -268,25 +308,27 @@ export default function AppliedJobsScreen() {
             <View style={styles.emptyIconBg}>
                 <Briefcase size={40} color={colors.muted} />
             </View>
-            <Text style={styles.emptyTitle}>No Applications Yet</Text>
-            <Text style={styles.emptyText}>Start applying to jobs and track your progress here!</Text>
+            <Text style={styles.emptyTitle}>{t('noApplicationsYet')}</Text>
+            <Text style={styles.emptyText}>{t('noApplicationsDesc')}</Text>
         </View>
     );
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
-                <Briefcase size={22} color="#fff" />
-                <Text style={styles.headerTitle}>My Applications</Text>
-                <View style={styles.countBadge}>
-                    <Text style={styles.countText}>{applications.length}</Text>
-                </View>
-            </View>
+            <TabScreenHeader
+                title={t('myApplications')}
+                icon={<Briefcase size={20} color={colors.primaryForeground} />}
+                badge={
+                    <View style={styles.countBadge}>
+                        <Text style={styles.countText}>{applications.length}</Text>
+                    </View>
+                }
+            />
 
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={styles.loadingText}>Loading applications...</Text>
+                    <Text style={styles.loadingText}>{t('loadingApplications')}</Text>
                 </View>
             ) : (
                 <FlatList
@@ -317,7 +359,7 @@ export default function AppliedJobsScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Job Details</Text>
+                            <Text style={styles.modalTitle}>{t('jobDetails')}</Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
                                 <XCircle size={24} color={colors.muted} />
                             </TouchableOpacity>
@@ -338,31 +380,31 @@ export default function AppliedJobsScreen() {
 
                                     <View style={styles.modalDivider} />
 
-                                    <Text style={styles.modalSectionTitle}>Job Description</Text>
+                                    <Text style={styles.modalSectionTitle}>{t('jobDescription')}</Text>
                                     <Text style={styles.modalDescription}>
-                                        {selectedJob.job_description || 'No description provided.'}
+                                        {selectedJob.job_description || t('noDescription')}
                                     </Text>
 
                                     <View style={styles.modalDivider} />
 
                                     <View style={styles.modalDetailRow}>
                                         <View style={styles.modalDetailItem}>
-                                            <Text style={styles.modalDetailLabel}>Salary</Text>
+                                            <Text style={styles.modalDetailLabel}>{t('salary')}</Text>
                                             <Text style={styles.modalDetailValue}>{formatSalary(selectedJob.salary_min, selectedJob.salary_max)}</Text>
                                         </View>
                                         <View style={styles.modalDetailItem}>
-                                            <Text style={styles.modalDetailLabel}>Location</Text>
+                                            <Text style={styles.modalDetailLabel}>{t('location')}</Text>
                                             <Text style={styles.modalDetailValue}>{selectedJob.city}</Text>
                                         </View>
                                     </View>
 
                                     <View style={[styles.modalDetailRow, { marginTop: spacing.md }]}>
                                         <View style={styles.modalDetailItem}>
-                                            <Text style={styles.modalDetailLabel}>Experience</Text>
+                                            <Text style={styles.modalDetailLabel}>{t('totalExperience')}</Text>
                                             <Text style={styles.modalDetailValue}>{selectedJob.experience}</Text>
                                         </View>
                                         <View style={styles.modalDetailItem}>
-                                            <Text style={styles.modalDetailLabel}>Vacancies</Text>
+                                            <Text style={styles.modalDetailLabel}>{t('vacancies')}</Text>
                                             <Text style={styles.modalDetailValue}>{selectedJob.number_of_people}</Text>
                                         </View>
                                     </View>
@@ -375,7 +417,7 @@ export default function AppliedJobsScreen() {
                                                 <>
                                                     <Icon size={16} color={config.color} />
                                                     <Text style={[styles.statusText, { color: config.color, fontSize: 12 }]}>
-                                                        Current Status: {config.text}
+                                                        {t('currentStatus')} {config.text}
                                                     </Text>
                                                 </>
                                             )
@@ -396,34 +438,23 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8fafc',
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        backgroundColor: '#1a9d6e',
-    },
-    headerTitle: {
-        flex: 1,
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
     countBadge: {
-        backgroundColor: 'rgba(255,255,255,0.25)',
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.22)',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: borderRadius.full,
+        marginLeft: spacing.xs,
     },
     countText: {
         color: '#fff',
         fontWeight: '700',
-        fontSize: 14,
+        fontSize: fontSize.xs,
     },
     listContent: {
-        padding: spacing.md,
-        gap: spacing.md,
+        paddingHorizontal: layout.screenPaddingX,
+        paddingTop: layout.screenPaddingY,
+        paddingBottom: 88,
+        gap: layout.cardGap,
         flexGrow: 1,
     },
     loadingContainer: {
@@ -440,15 +471,15 @@ const styles = StyleSheet.create({
     // Job Card
     jobCard: {
         backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        padding: layout.cardPaddingLg,
         borderWidth: 1,
         borderColor: '#10b981',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
         position: 'relative',
     },
     appliedBadge: {
@@ -476,9 +507,9 @@ const styles = StyleSheet.create({
         paddingRight: 80, // Space for applied badge
     },
     iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
+        width: layout.avatarMd,
+        height: layout.avatarMd,
+        borderRadius: borderRadius.md,
         backgroundColor: 'rgba(26, 157, 110, 0.1)',
         alignItems: 'center',
         justifyContent: 'center',
@@ -488,7 +519,7 @@ const styles = StyleSheet.create({
         marginLeft: spacing.sm,
     },
     roleText: {
-        fontSize: 16,
+        fontSize: fontSize.base,
         fontWeight: '700',
         color: '#1e40af',
     },
@@ -606,18 +637,52 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
+    rejectionReason: {
+        fontSize: fontSize.sm,
+        color: '#ef4444',
+        marginTop: spacing.sm,
+        paddingHorizontal: spacing.xs,
+    },
+    supportCta: {
+        marginTop: spacing.sm,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
+        backgroundColor: '#eff6ff',
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.sm,
+    },
+    supportCtaTitle: {
+        fontSize: fontSize.xs,
+        color: '#1e40af',
+        fontWeight: '600',
+    },
+    supportCtaLink: {
+        marginTop: 4,
+        fontSize: fontSize.sm,
+        color: '#2563eb',
+        fontWeight: '700',
+        textDecorationLine: 'underline',
+    },
+    supportCtaDisabled: {
+        opacity: 0.45,
+    },
+    supportCtaLinkDisabled: {
+        color: colors.muted,
+        textDecorationLine: 'none',
+    },
     // Workflow Tracker Styles (Copied & adapted)
     workflowSection: {
-        marginTop: spacing.md,
-        paddingTop: spacing.md,
+        marginTop: spacing.sm,
+        paddingTop: spacing.sm,
         borderTopWidth: 1,
         borderTopColor: '#f1f5f9',
     },
     workflowTitle: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '700',
         color: colors.muted,
-        marginBottom: 12,
+        marginBottom: 8,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },

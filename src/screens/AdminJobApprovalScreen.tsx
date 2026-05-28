@@ -11,7 +11,7 @@ import {
     StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, CheckCircle, XCircle, Clock, Building2, MapPin, Users, Briefcase } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, XCircle, Clock, Building2, MapPin, Users, Briefcase, Phone } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -161,6 +161,13 @@ export default function AdminJobApprovalScreen() {
                 <Building2 size={14} color={colors.muted} />
                 <Text style={styles.infoText}>{item.company_name || 'Unknown Company'}</Text>
             </View>
+
+            {item.recruiter_phone ? (
+                <View style={styles.infoRow}>
+                    <Phone size={14} color={colors.muted} />
+                    <Text style={styles.infoText}>{item.recruiter_phone}</Text>
+                </View>
+            ) : null}
 
             <View style={styles.infoRow}>
                 <MapPin size={14} color={colors.muted} />
@@ -369,7 +376,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: spacing.xs,
-        paddingVertical: spacing.sm,
+        minHeight: 40,
+        paddingVertical: 8,
         borderRadius: borderRadius.md,
     },
     rejectBtn: {

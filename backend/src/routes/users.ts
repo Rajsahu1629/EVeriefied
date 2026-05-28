@@ -44,6 +44,15 @@ router.post('/', async (req, res) => {
         if (!fullName || !phoneNumber || !password || !role) {
             return res.status(400).json({ error: 'Name, phone, password and role are required' });
         }
+        const userState = String(state || '').trim();
+        const userCity = String(city || '').trim();
+        const userPincode = String(pincode || '').replace(/\D/g, '');
+        if (!userState || !userCity) {
+            return res.status(400).json({ error: 'State and city are required' });
+        }
+        if (!/^\d{6}$/.test(userPincode)) {
+            return res.status(400).json({ error: 'A valid 6-digit pincode is required' });
+        }
         if (!currentSalary || String(currentSalary).trim() === '') {
             return res.status(400).json({ error: 'Current salary is required' });
         }
@@ -58,7 +67,7 @@ router.post('/', async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *`,
             [
-                fullName, phoneNumber, password, state, city, pincode,
+                fullName, phoneNumber, password, userState, userCity, userPincode,
                 qualification, experience, currentWorkshop, brandWorkshop,
                 JSON.stringify(brands || []), role, 'pending', 1, priorKnowledge, currentSalary,
                 domain, vehicleCategory || null, trainingRole || null
@@ -149,6 +158,16 @@ router.put('/:id', async (req, res) => {
             domain, vehicleCategory, trainingRole
         } = req.body;
 
+        const userState = String(state || '').trim();
+        const userCity = String(city || '').trim();
+        const userPincode = String(pincode || '').replace(/\D/g, '');
+        if (!userState || !userCity) {
+            return res.status(400).json({ error: 'State and city are required' });
+        }
+        if (!/^\d{6}$/.test(userPincode)) {
+            return res.status(400).json({ error: 'A valid 6-digit pincode is required' });
+        }
+
         await query(
             `UPDATE users SET 
         full_name = $1, state = $2, city = $3, pincode = $4,
@@ -157,7 +176,7 @@ router.put('/:id', async (req, res) => {
         domain = $12, vehicle_category = $13, training_role = $14, updated_at = CURRENT_TIMESTAMP
        WHERE id = $15`,
             [
-                fullName, state, city, pincode, qualification, experience,
+                fullName, userState, userCity, userPincode, qualification, experience,
                 currentWorkshop, brandWorkshop, JSON.stringify(brands || []),
                 priorKnowledge, currentSalary, domain, vehicleCategory || null, trainingRole || null, id
             ]

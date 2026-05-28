@@ -25,6 +25,16 @@ router.post('/', async (req, res) => {
     try {
         const { companyName, entityType, fullAddress, city, state, pincode, phoneNumber, password } = req.body;
 
+        const recruiterState = String(state || '').trim();
+        const recruiterCity = String(city || '').trim();
+        const recruiterPincode = String(pincode || '').replace(/\D/g, '');
+        if (!recruiterState || !recruiterCity) {
+            return res.status(400).json({ error: 'State and city are required' });
+        }
+        if (!/^\d{6}$/.test(recruiterPincode)) {
+            return res.status(400).json({ error: 'A valid 6-digit pincode is required' });
+        }
+
         // Check if recruiter already exists
         const existing = await query<any>(
             `SELECT id FROM recruiters WHERE phone_number = $1`,
@@ -40,7 +50,7 @@ router.post('/', async (req, res) => {
             `INSERT INTO recruiters (company_name, entity_type, full_address, city, state, pincode, phone_number, password)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-            [companyName, entityType, fullAddress, city, state, pincode, phoneNumber, password]
+            [companyName, entityType, fullAddress, recruiterCity, recruiterState, recruiterPincode, phoneNumber, password]
         );
 
         const recruiter = result[0];

@@ -20,11 +20,13 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import {
     CheckCircle, Users, Search, LogOut, ChevronRight,
-    Briefcase, Clock, Award, Shield, Menu, X, Home, Bell
+    Briefcase, Clock, Award, Shield, Menu, X, Home, Bell, FileText,
+    TrendingUp, Ban, CreditCard, ClipboardList
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { colors, spacing, borderRadius, fontSize, shadows } from '../lib/theme';
 import { getAdminStats, broadcastNotification } from '../lib/api';
+import { clearAdminToken, hydrateAdminToken, isAdminUnauthorizedError } from '../lib/adminAuth';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
@@ -36,6 +38,8 @@ export default function AdminDashboardScreen() {
         totalCandidates: 0,
         verifiedCandidates: 0,
         totalRecruiters: 0,
+        newApplications: 0,
+        filledJobs: 0,
     });
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -84,17 +88,44 @@ export default function AdminDashboardScreen() {
         }
     };
 
+    const redirectToAdminLogin = React.useCallback(() => {
+        Alert.alert(
+            'Admin session expired',
+            'Please log in again with your admin phone and password.',
+            [{
+                text: 'OK',
+                onPress: () => {
+                    navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'Login' }],
+                    });
+                },
+            }]
+        );
+    }, [navigation]);
+
     const fetchStats = async () => {
         try {
+            const token = await hydrateAdminToken();
+            if (!token) {
+                redirectToAdminLogin();
+                return;
+            }
             const statsData = await getAdminStats();
             setStats({
                 pendingJobs: statsData.pendingJobs,
                 totalCandidates: statsData.totalCandidates,
                 verifiedCandidates: statsData.verifiedCandidates,
                 totalRecruiters: statsData.totalRecruiters,
+                newApplications: statsData.newApplications ?? 0,
+                filledJobs: statsData.filledJobs ?? 0,
             });
         } catch (error) {
             console.error('Error fetching stats:', error);
+            if (isAdminUnauthorizedError(error)) {
+                await clearAdminToken();
+                redirectToAdminLogin();
+            }
         }
     };
 
@@ -105,7 +136,8 @@ export default function AdminDashboardScreen() {
     const { useFocusEffect } = require('@react-navigation/native');
     useFocusEffect(navigationFocusEffect);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await clearAdminToken();
         navigation.reset({
             index: 0,
             routes: [{ name: 'RoleSelection' }],
@@ -222,6 +254,61 @@ export default function AdminDashboardScreen() {
 
                     <TouchableOpacity
                         style={styles.gridCard}
+                        onPress={() => handleNavigation('AdminApplications')}
+                    >
+                        <View style={[styles.gridIcon, { backgroundColor: '#ede9fe' }]}>
+                            <FileText size={28} color="#7c3aed" />
+                        </View>
+                        <Text style={styles.gridTitle}>Hiring Hub</Text>
+                        <Text style={styles.gridDesc}>{stats.newApplications} new · by company</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.gridCard}
+                        onPress={() => handleNavigation('AdminPendingQuiz')}
+                    >
+                        <View style={[styles.gridIcon, { backgroundColor: '#ffedd5' }]}>
+                            <ClipboardList size={28} color="#ea580c" />
+                        </View>
+                        <Text style={styles.gridTitle}>Quiz Review</Text>
+                        <Text style={styles.gridDesc}>Pending users</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.gridCard}
+                        onPress={() => handleNavigation('AdminActiveJobs')}
+                    >
+                        <View style={[styles.gridIcon, { backgroundColor: '#fef3c7' }]}>
+                            <Ban size={28} color="#b45309" />
+                        </View>
+                        <Text style={styles.gridTitle}>Live Jobs</Text>
+                        <Text style={styles.gridDesc}>Mark filled</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.gridCard}
+                        onPress={() => handleNavigation('AdminAnalytics')}
+                    >
+                        <View style={[styles.gridIcon, { backgroundColor: '#e0e7ff' }]}>
+                            <TrendingUp size={28} color="#4f46e5" />
+                        </View>
+                        <Text style={styles.gridTitle}>Analytics</Text>
+                        <Text style={styles.gridDesc}>Hiring funnel</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.gridCard}
+                        onPress={() => handleNavigation('AdminCardOrders')}
+                    >
+                        <View style={[styles.gridIcon, { backgroundColor: '#d1fae5' }]}>
+                            <CreditCard size={28} color="#059669" />
+                        </View>
+                        <Text style={styles.gridTitle}>Card Orders</Text>
+                        <Text style={styles.gridDesc}>Fulfillment</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.gridCard}
                         onPress={() => handleNavigation('CandidateSearch')}
                     >
                         <View style={[styles.gridIcon, { backgroundColor: '#e0f2fe' }]}>
@@ -233,13 +320,13 @@ export default function AdminDashboardScreen() {
 
                     <TouchableOpacity
                         style={styles.gridCard}
-                        onPress={() => handleNavigation('RecruiterDashboard')}
+                        onPress={() => handleNavigation('RecruiterLogin')}
                     >
                         <View style={[styles.gridIcon, { backgroundColor: '#d1fae5' }]}>
                             <Briefcase size={28} color="#059669" />
                         </View>
                         <Text style={styles.gridTitle}>Recruiter</Text>
-                        <Text style={styles.gridDesc}>View Mode</Text>
+                        <Text style={styles.gridDesc}>Log in</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -299,15 +386,40 @@ export default function AdminDashboardScreen() {
                             <Text style={styles.menuText}>Verification Rechecks</Text>
                         </TouchableOpacity>
 
+                        <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('AdminApplications')}>
+                            <FileText size={22} color="#7c3aed" />
+                            <Text style={styles.menuText}>Hiring Hub</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('AdminPendingQuiz')}>
+                            <ClipboardList size={22} color={colors.muted} />
+                            <Text style={styles.menuText}>Quiz Pending Review</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('AdminActiveJobs')}>
+                            <Ban size={22} color={colors.muted} />
+                            <Text style={styles.menuText}>Live Jobs / Mark Filled</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('AdminAnalytics')}>
+                            <TrendingUp size={22} color={colors.muted} />
+                            <Text style={styles.menuText}>Analytics</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('AdminCardOrders')}>
+                            <CreditCard size={22} color={colors.muted} />
+                            <Text style={styles.menuText}>Card Orders</Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('CandidateSearch')}>
                             <Users size={22} color={colors.muted} />
                             <Text style={styles.menuText}>All Candidates</Text>
                         </TouchableOpacity>
 
                         <Text style={styles.menuLabel}>TOOLS</Text>
-                        <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('RecruiterDashboard')}>
+                        <TouchableOpacity style={styles.menuItem} onPress={() => handleNavigation('RecruiterLogin')}>
                             <Briefcase size={22} color={colors.muted} />
-                            <Text style={styles.menuText}>Recruiter Mode</Text>
+                            <Text style={styles.menuText}>Recruiter login</Text>
                         </TouchableOpacity>
 
                     </ScrollView>
@@ -410,7 +522,7 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: '#7c3aed', // Purple for admin
-        paddingVertical: spacing.lg,
+        paddingVertical: spacing.md,
         paddingHorizontal: spacing.lg,
         flexDirection: 'row',
         alignItems: 'center',
@@ -485,8 +597,8 @@ const styles = StyleSheet.create({
     gridCard: {
         width: '47%', // 2 per row with gap
         backgroundColor: colors.card,
-        padding: spacing.lg,
-        borderRadius: borderRadius.xl,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: colors.border,
@@ -498,7 +610,7 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: spacing.md,
+        marginBottom: spacing.sm,
     },
     gridTitle: {
         fontSize: fontSize.base,

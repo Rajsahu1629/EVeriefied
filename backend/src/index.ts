@@ -26,7 +26,8 @@ app.use(express.json());
 
 // Request logging
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    console.log(`${new Date().toISOString()} ${req.method} ${req.path}${query}`);
     next();
 });
 
@@ -53,9 +54,11 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     res.status(500).json({ error: 'Internal server error' });
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`🚀 EVeerified Backend running on http://localhost:${PORT}`);
+// Listen on all interfaces so phones on the same Wi‑Fi can reach the API
+app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`🚀 EVeerified Backend running on port ${PORT}`);
+    console.log(`   Local:   http://localhost:${PORT}/api`);
+    console.log(`   Network: http://<your-laptop-ip>:${PORT}/api  (use this for Expo Go on phone)`);
 });
 
 export default app;

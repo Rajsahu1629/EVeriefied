@@ -1,68 +1,21 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius } from '../lib/theme';
+import { colors, spacing, borderRadius, layout } from '../lib/theme';
+import { TabScreenHeader } from '../components/TabScreenHeader';
 import { Calendar, ChevronRight, Newspaper, ExternalLink } from 'lucide-react-native';
 import { useLanguage } from '../contexts/LanguageContext';
-
-// Hardcoded EV News - lightweight, no database
-const NEWS_DATA = [
-    {
-        id: '1',
-        title_en: 'India to have 10,000 EV charging stations by 2026',
-        title_hi: 'भारत में 2026 तक 10,000 EV चार्जिंग स्टेशन होंगे',
-        source: 'EV India News',
-        date: '2 hours ago',
-        image: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?w=400',
-        url: 'https://www.google.com/search?q=ev+charging+stations+india',
-    },
-    {
-        id: '2',
-        title_en: 'Tata Motors announces new EV battery technology',
-        title_hi: 'टाटा मोटर्स ने नई EV बैटरी तकनीक की घोषणा की',
-        source: 'Auto Weekly',
-        date: '5 hours ago',
-        image: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=400',
-        url: 'https://www.google.com/search?q=tata+motors+ev+battery',
-    },
-    {
-        id: '3',
-        title_en: 'Skills shortage in EV sector: 50,000 technicians needed',
-        title_hi: 'EV क्षेत्र में कौशल की कमी: 50,000 तकनीशियनों की आवश्यकता',
-        source: 'Skill India',
-        date: '1 day ago',
-        image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400',
-        url: 'https://www.google.com/search?q=ev+technician+jobs+india',
-    },
-    {
-        id: '4',
-        title_en: 'Ola Electric expands footprint, opens 100 new showrooms',
-        title_hi: 'ओला इलेक्ट्रिक ने 100 नए शोरूम खोले',
-        source: 'Business Today',
-        date: '2 days ago',
-        image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400',
-        url: 'https://www.google.com/search?q=ola+electric+showrooms',
-    },
-    {
-        id: '5',
-        title_en: 'Government extends FAME II subsidy for electric vehicles',
-        title_hi: 'सरकार ने FAME II सब्सिडी बढ़ाई',
-        source: 'Economic Times',
-        date: '3 days ago',
-        image: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400',
-        url: 'https://www.google.com/search?q=fame+subsidy+ev+india',
-    },
-];
+import { pickLocalizedText } from '../lib/localizedContent';
+import { NEWS_ARTICLES, formatNewsTime, type NewsArticle } from '../data/newsArticles';
 
 export default function NewsScreen() {
-    const { language } = useLanguage();
-    const isHindi = language === 'hi';
+    const { language, t } = useLanguage();
 
     const openNews = (url: string) => {
         Linking.openURL(url);
     };
 
-    const renderItem = ({ item }: { item: typeof NEWS_DATA[0] }) => (
+    const renderItem = ({ item }: { item: NewsArticle }) => (
         <TouchableOpacity
             style={styles.newsCard}
             activeOpacity={0.7}
@@ -71,14 +24,25 @@ export default function NewsScreen() {
             <Image source={{ uri: item.image }} style={styles.newsImage} />
             <View style={styles.newsContent}>
                 <Text style={styles.newsTitle} numberOfLines={2}>
-                    {isHindi ? item.title_hi : item.title_en}
+                    {pickLocalizedText(
+                        {
+                            en: item.title_en,
+                            hi: item.title_hi,
+                            mr: item.title_mr,
+                            kn: item.title_kn,
+                            te: item.title_te,
+                            or: item.title_or,
+                        },
+                        language,
+                        item.title_en
+                    )}
                 </Text>
                 <View style={styles.metaRow}>
                     <Text style={styles.sourceText}>{item.source}</Text>
                     <View style={styles.dot} />
                     <View style={styles.dateRow}>
                         <Calendar size={12} color={colors.muted} />
-                        <Text style={styles.dateText}>{item.date}</Text>
+                        <Text style={styles.dateText}>{formatNewsTime(item, t)}</Text>
                     </View>
                 </View>
             </View>
@@ -92,29 +56,27 @@ export default function NewsScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar barStyle="light-content" />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <Newspaper size={22} color="#fff" />
-                <Text style={styles.headerTitle}>
-                    {isHindi ? 'EV समाचार' : 'EV News'}
-                </Text>
-            </View>
+            <TabScreenHeader
+                title={t('evNews')}
+                icon={<Newspaper size={20} color="#fff" />}
+                backgroundColor="#dc2626"
+            />
 
             <FlatList
-                data={NEWS_DATA}
+                data={NEWS_ARTICLES}
                 renderItem={renderItem}
-                keyExtractor={item => item.id}
+                keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
                 ListFooterComponent={() => (
                     <TouchableOpacity
                         style={styles.moreBtn}
-                        onPress={() => Linking.openURL('https://www.google.com/search?q=ev+news+india&tbm=nws')}
+                        onPress={() =>
+                            Linking.openURL('https://www.google.com/search?q=ev+news+india&tbm=nws')
+                        }
                     >
                         <ExternalLink size={16} color={colors.primary} />
-                        <Text style={styles.moreBtnText}>
-                            {isHindi ? 'और समाचार देखें' : 'More EV News'}
-                        </Text>
+                        <Text style={styles.moreBtnText}>{t('moreEvNews')}</Text>
                     </TouchableOpacity>
                 )}
             />
@@ -127,22 +89,11 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f8fafc',
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        backgroundColor: '#dc2626',
-        padding: spacing.md,
-        paddingTop: spacing.lg,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
     listContent: {
-        padding: spacing.md,
-        gap: spacing.sm,
+        paddingHorizontal: layout.screenPaddingX,
+        paddingTop: layout.screenPaddingY,
+        paddingBottom: 88,
+        gap: layout.cardGap,
     },
     newsCard: {
         flexDirection: 'row',
