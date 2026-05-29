@@ -78,7 +78,7 @@ const questions = [
   },
   // ADD MORE QUESTIONS HERE - just paste your objects!
 ];
-export const workshopQuestions: QuestionData[] = [
+const workshopQuestions = [
   {
     role: "workshop",
     step: 1,
@@ -250,7 +250,7 @@ export const workshopQuestions: QuestionData[] = [
     points: 1, difficulty: "medium"
   }
 ];
-export const salesQuestions: QuestionData[] = [
+const salesQuestions = [
   {
     role: "sales",
     step: 1,
@@ -422,7 +422,7 @@ export const salesQuestions: QuestionData[] = [
     points: 1, difficulty: "medium"
   }
 ];
-export const technicianStep2Questions: QuestionData[] = [
+const technicianStep2Questions = [
   {
     role: "technician",
     step: 2,
@@ -512,8 +512,6 @@ export const technicianStep2Questions: QuestionData[] = [
     role: "technician",
     step: 2,
     question_text_en: "BMS error? Do this:",
-    role: "technician",
-    step: 2,
     question_text_hi: "BMS एरर आने पर क्या करें?",
     question_text_mr: "BMS एरर? काय करावे:",
     question_text_kn: "BMS ದೋಷ? ಹೀಗೆ ಮಾಡಿ:",
@@ -682,7 +680,7 @@ export const technicianStep2Questions: QuestionData[] = [
   }
 ];
 
-export const technicianStep1Questions: QuestionData[] = [
+const technicianStep1Questions = [
   {
     role: "technician",
     step: 1,
